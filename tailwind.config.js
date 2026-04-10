@@ -5,19 +5,22 @@ export default {
     extend: {
       colors: {
         glass: {
-          bg: "rgba(255, 255, 255, 0.05)",
+          bg: "rgba(255, 255, 255, 0.04)",
           "bg-hover": "rgba(255, 255, 255, 0.08)",
-          border: "rgba(255, 255, 255, 0.1)",
-          "border-light": "rgba(255, 255, 255, 0.2)",
+          "bg-active": "rgba(255, 255, 255, 0.12)",
+          border: "rgba(255, 255, 255, 0.06)",
+          "border-hover": "rgba(255, 255, 255, 0.12)",
+          "border-active": "rgba(255, 255, 255, 0.2)",
         },
         surface: {
-          primary: "#0a0a0f",
-          secondary: "#12121a",
+          primary: "#050508",
+          secondary: "#0a0a0e",
+          tertiary: "#111118",
         },
         accent: {
-          cyan: "#00d4ff",
-          purple: "#b347d9",
-          magenta: "#ff0080",
+          cyan: "#06b6d4",
+          purple: "#8b5cf6",
+          magenta: "#ec4899",
         },
       },
       fontFamily: {
@@ -25,10 +28,23 @@ export default {
         mono: ["SF Mono", "JetBrains Mono", "monospace"],
       },
       fontSize: {
-        label: "12px",
-        body: "14px",
-        heading: "16px",
-        title: "24px",
+        label: ["11px", { lineHeight: "14px", letterSpacing: "0.02em" }],
+        body: ["13px", { lineHeight: "20px" }],
+        heading: ["15px", { lineHeight: "22px", fontWeight: "500" }],
+        title: ["20px", { lineHeight: "28px", fontWeight: "600" }],
+      },
+      transitionTimingFunction: {
+        smooth: "cubic-bezier(0.4, 0, 0.2, 1)",
+        bounce: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+      },
+      transitionDuration: {
+        fast: "150ms",
+        normal: "200ms",
+        slow: "300ms",
+      },
+      boxShadow: {
+        glass: "0 1px 2px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.04)",
+        "glass-lg": "0 4px 12px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
       },
     },
   },

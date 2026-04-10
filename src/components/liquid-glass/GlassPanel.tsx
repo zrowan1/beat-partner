@@ -19,9 +19,11 @@ export function GlassPanel({
   gloss = false,
   onClick,
 }: GlassPanelProps) {
-  const classes = [levelClasses[level], gloss ? "glass-gloss" : "", className]
-    .filter(Boolean)
-    .join(" ");
+  const classes = [
+    levelClasses[level], 
+    gloss ? "glass-gloss" : "", 
+    className
+  ].filter(Boolean).join(" ");
 
   return (
     <div className={classes} onClick={onClick}>
