@@ -9,17 +9,19 @@ export function Sidebar() {
   if (!sidebarOpen) return null;
 
   return (
-    <aside className="w-52 flex flex-col gap-1 shrink-0">
-      {NAV_ITEMS.map((item) => (
-        <NavButton
-          key={item.id}
-          id={item.id}
-          label={item.label}
-          icon={item.icon}
-          active={activeView === item.id}
-          onClick={() => setActiveView(item.id)}
-        />
-      ))}
+    <aside className="w-56 flex flex-col gap-2 shrink-0">
+      <div className="glass-card glass-gloss p-2">
+        {NAV_ITEMS.map((item) => (
+          <NavButton
+            key={item.id}
+            id={item.id}
+            label={item.label}
+            icon={item.icon}
+            active={activeView === item.id}
+            onClick={() => setActiveView(item.id)}
+          />
+        ))}
+      </div>
     </aside>
   );
 }
@@ -39,18 +41,24 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-body text-left transition-all duration-200 group ${
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-body text-left transition-all duration-300 group ${
         active
-          ? "bg-white/[0.08] text-accent-cyan border-l-2 border-accent-cyan"
-          : "text-white/60 hover:text-white hover:bg-white/[0.04] border-l-2 border-transparent"
+          ? "glass-interactive active"
+          : "hover:bg-white/[0.04] text-white/60 hover:text-white"
       }`}
     >
-      <Icon 
-        size={18} 
-        strokeWidth={active ? 2 : 1.5} 
-        className={`transition-colors ${active ? "text-accent-cyan" : "text-white/40 group-hover:text-white/60"}`}
-      />
-      <span className={active ? "font-medium" : ""}>{label}</span>
+      <div className={`p-2 rounded-lg transition-all ${
+        active 
+          ? "bg-accent-cyan/20" 
+          : "bg-white/[0.04] group-hover:bg-white/[0.08]"
+      }`}>
+        <Icon 
+          size={18} 
+          strokeWidth={active ? 2 : 1.5} 
+          className={active ? "text-accent-cyan" : "text-white/50"}
+        />
+      </div>
+      <span className={active ? "font-medium text-accent-cyan" : ""}>{label}</span>
     </button>
   );
 }
