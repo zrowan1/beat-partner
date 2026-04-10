@@ -61,17 +61,18 @@ export interface SendChatMessageParams {
   model: string;
   provider: AIProvider;
   baseUrl?: string;
+  apiKey?: string;
   onChunk: (chunk: string) => void;
 }
 
 export async function sendChatMessage(
   params: SendChatMessageParams
 ): Promise<AIMessage> {
-  const { projectId, sessionId, content, model, provider, baseUrl, onChunk } = params;
-  
+  const { projectId, sessionId, content, model, provider, baseUrl, apiKey, onChunk } = params;
+
   const channel = new Channel<string>();
   channel.onmessage = onChunk;
-  
+
   return invoke("send_chat_message", {
     projectId,
     sessionId,
@@ -79,6 +80,7 @@ export async function sendChatMessage(
     model,
     provider,
     baseUrl,
+    apiKey,
     onChunk: channel,
   });
 }

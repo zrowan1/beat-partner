@@ -27,20 +27,6 @@ pub enum ModelUseCase {
     Creative,
 }
 
-impl ModelUseCase {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            ModelUseCase::General => "general",
-            ModelUseCase::Theory => "theory",
-            ModelUseCase::Production => "production",
-            ModelUseCase::SoundDesign => "sound_design",
-            ModelUseCase::Mixing => "mixing",
-            ModelUseCase::Mastering => "mastering",
-            ModelUseCase::Analysis => "analysis",
-            ModelUseCase::Creative => "creative",
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HardwareCapabilities {
@@ -181,15 +167,6 @@ impl ModelSizeTier {
             ModelSizeTier::Small => "small",
             ModelSizeTier::Medium => "medium",
             ModelSizeTier::Large => "large",
-        }
-    }
-
-    pub fn max_size_gb(&self) -> f64 {
-        match self {
-            ModelSizeTier::Tiny => 4.0,
-            ModelSizeTier::Small => 8.0,
-            ModelSizeTier::Medium => 16.0,
-            ModelSizeTier::Large => f64::MAX,
         }
     }
 

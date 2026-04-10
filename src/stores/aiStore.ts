@@ -11,11 +11,15 @@ import type {
 import * as aiApi from "@/services/aiApi";
 import toast from "react-hot-toast";
 
+const DEFAULT_CHAT_HISTORY_LIMIT = 100;
+
 interface AIState {
   // Provider & Models
   provider: AIProvider;
   availableProviders: AIProvider[];
   ollamaBaseUrl: string;
+  cloudApiKey: string | null;
+  cloudBaseUrl: string | null;
   models: OllamaModel[];
   selectedModel: string | null;
   isLoadingModels: boolean;
@@ -34,6 +38,7 @@ interface AIState {
   sessionId: string;
   isStreaming: boolean;
   streamingContent: string;
+  chatHistoryLimit: number;
 
   // UI State
   showModelManager: boolean;
@@ -42,7 +47,10 @@ interface AIState {
   // Actions
   setProvider: (provider: AIProvider) => void;
   setOllamaBaseUrl: (url: string) => void;
+  setCloudApiKey: (key: string | null) => void;
+  setCloudBaseUrl: (url: string | null) => void;
   setSelectedModel: (modelId: string | null) => void;
+  setChatHistoryLimit: (limit: number) => void;
   toggleModelManager: () => void;
 
   // Async actions
@@ -64,8 +72,10 @@ interface AIState {
 export const useAIStore = create<AIState>((set, get) => ({
   // Initial state
   provider: "auto",
-  availableProviders: ["auto", "ollama"],
+  availableProviders: ["auto", "ollama", "openai", "anthropic", "custom"],
   ollamaBaseUrl: "http://localhost:11434",
+  cloudApiKey: null,
+  cloudBaseUrl: null,
   models: [],
   selectedModel: null,
   isLoadingModels: false,
@@ -81,6 +91,7 @@ export const useAIStore = create<AIState>((set, get) => ({
   sessionId: aiApi.generateSessionId(),
   isStreaming: false,
   streamingContent: "",
+  chatHistoryLimit: DEFAULT_CHAT_HISTORY_LIMIT,
 
   showModelManager: false,
   ollamaStatus: "unknown",
@@ -90,7 +101,13 @@ export const useAIStore = create<AIState>((set, get) => ({
 
   setOllamaBaseUrl: (url) => set({ ollamaBaseUrl: url }),
 
+  setCloudApiKey: (key) => set({ cloudApiKey: key }),
+
+  setCloudBaseUrl: (url) => set({ cloudBaseUrl: url }),
+
   setSelectedModel: (modelId) => set({ selectedModel: modelId }),
+
+  setChatHistoryLimit: (limit) => set({ chatHistoryLimit: limit }),
 
   toggleModelManager: () =>
     set((state) => ({ showModelManager: !state.showModelManager })),
@@ -207,10 +224,10 @@ export const useAIStore = create<AIState>((set, get) => ({
 
   // Chat actions
   loadChatHistory: async () => {
-    const { sessionId } = get();
+    const { sessionId, chatHistoryLimit } = get();
 
     try {
-      const messages = await aiApi.loadChatHistory(sessionId, 50);
+      const messages = await aiApi.loadChatHistory(sessionId, chatHistoryLimit);
       set({ messages });
     } catch (error) {
       console.error("Failed to load chat history:", error);
@@ -218,7 +235,7 @@ export const useAIStore = create<AIState>((set, get) => ({
   },
 
   sendMessage: async (content: string) => {
-    const { sessionId, selectedModel, provider, ollamaBaseUrl, messages } = get();
+    const { sessionId, selectedModel, provider, ollamaBaseUrl, cloudApiKey, messages } = get();
 
     if (!selectedModel) {
       toast.error("Please select a model first");
@@ -249,6 +266,7 @@ export const useAIStore = create<AIState>((set, get) => ({
         model: selectedModel,
         provider,
         baseUrl: ollamaBaseUrl,
+        apiKey: cloudApiKey ?? undefined,
         onChunk: (chunk) => {
           streamedContent += chunk;
           set({ streamingContent: streamedContent });

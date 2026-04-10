@@ -48,30 +48,50 @@ impl HardwareService {
 
     fn detect_gpu_memory() -> Option<f64> {
         if cfg!(target_os = "macos") {
-            if let Ok(output) = std::process::Command::new("system_profiler")
-                .args(["SPDisplaysDataType", "-json"])
-                .output()
-            {
-                if let Ok(json_str) = String::from_utf8(output.stdout) {
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&json_str) {
-                        if let Some(displays) = json.get("SPDisplaysDataType").and_then(|d| d.as_array()) {
-                            for display in displays {
-                                if let Some(vram) = display.get("spdisplays_vram") {
-                                    if let Some(vram_str) = vram.as_str() {
-                                        if let Some(size_str) = vram_str.split_whitespace().next() {
-                                            if let Ok(size) = size_str.parse::<f64>() {
-                                                return Some(size);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+            Self::detect_gpu_memory_macos()
+        } else {
+            // Try nvidia-smi first (works on both Windows and Linux with NVIDIA GPUs)
+            Self::detect_gpu_memory_nvidia()
+        }
+    }
+
+    fn detect_gpu_memory_macos() -> Option<f64> {
+        let output = std::process::Command::new("system_profiler")
+            .args(["SPDisplaysDataType", "-json"])
+            .output()
+            .ok()?;
+
+        let json_str = String::from_utf8(output.stdout).ok()?;
+        let json: serde_json::Value = serde_json::from_str(&json_str).ok()?;
+
+        let displays = json.get("SPDisplaysDataType")?.as_array()?;
+        for display in displays {
+            if let Some(vram_str) = display.get("spdisplays_vram").and_then(|v| v.as_str()) {
+                if let Some(size_str) = vram_str.split_whitespace().next() {
+                    if let Ok(size) = size_str.parse::<f64>() {
+                        return Some(size);
                     }
                 }
             }
         }
         None
+    }
+
+    fn detect_gpu_memory_nvidia() -> Option<f64> {
+        // nvidia-smi works on both Windows and Linux
+        let output = std::process::Command::new("nvidia-smi")
+            .args(["--query-gpu=memory.total", "--format=csv,noheader,nounits"])
+            .output()
+            .ok()?;
+
+        if !output.status.success() {
+            return None;
+        }
+
+        let stdout = String::from_utf8(output.stdout).ok()?;
+        // nvidia-smi returns memory in MiB, take the first GPU
+        let mib: f64 = stdout.lines().next()?.trim().parse().ok()?;
+        Some(mib / 1024.0)
     }
 
     pub fn get_recommendations(
@@ -143,6 +163,7 @@ impl HardwareService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::ModelSizeTier;
 
     #[test]
     fn test_model_size_tier() {
@@ -189,17 +210,19 @@ mod tests {
 
     #[test]
     fn test_apple_silicon_bonus() {
+        // 18GB Intel → Small (18 is in 13..=20)
         let intel = HardwareCapabilities {
-            total_memory_gb: 16.0,
+            total_memory_gb: 18.0,
             gpu_memory_gb: None,
             cpu_cores: 8,
             cpu_vendor: "Intel".to_string(),
             os: "macos".to_string(),
             is_apple_silicon: false,
         };
-        
+
+        // 18GB Apple Silicon → 18 * 1.2 = 21.6 → Medium (21..=40)
         let apple = HardwareCapabilities {
-            total_memory_gb: 16.0,
+            total_memory_gb: 18.0,
             gpu_memory_gb: None,
             cpu_cores: 8,
             cpu_vendor: "Apple".to_string(),

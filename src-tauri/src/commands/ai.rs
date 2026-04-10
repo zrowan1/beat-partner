@@ -125,13 +125,34 @@ pub async fn send_chat_message(
     session_id: String,
     content: String,
     model: String,
-    _provider: String,
+    provider: String,
     base_url: Option<String>,
+    api_key: Option<String>,
     on_chunk: Channel<String>,
 ) -> Result<AIMessage> {
-    let service = match base_url {
-        Some(url) => AIService::with_base_url(url),
-        None => AIService::new(Default::default()),
+    let service = match provider.as_str() {
+        "openai" | "anthropic" | "custom" => {
+            let ai_provider = match provider.as_str() {
+                "openai" => crate::services::AIProvider::OpenAI,
+                "anthropic" => crate::services::AIProvider::Anthropic,
+                _ => crate::services::AIProvider::Custom,
+            };
+            match api_key {
+                Some(key) => AIService::with_cloud_config(
+                    ai_provider,
+                    key,
+                    model.clone(),
+                    base_url,
+                ),
+                None => return Err(crate::error::BeatPartnerError::Config(
+                    "API key required for cloud providers".to_string(),
+                )),
+            }
+        }
+        _ => match base_url {
+            Some(url) => AIService::with_base_url(url),
+            None => AIService::new(Default::default()),
+        },
     };
 
     // Save user message to database

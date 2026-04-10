@@ -1,6 +1,6 @@
 use crate::error::{BeatPartnerError, Result};
 use crate::models::{ChatMessage, ChatResponse, OllamaModel};
-use crate::services::OllamaService;
+use crate::services::{CloudService, OllamaService};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
@@ -52,17 +52,35 @@ impl Default for AIConfig {
 pub struct AIService {
     config: AIConfig,
     ollama: OllamaService,
+    cloud: CloudService,
 }
 
 impl AIService {
     pub fn new(config: AIConfig) -> Self {
         let ollama = OllamaService::new(config.ollama_base_url.clone());
-        Self { config, ollama }
+        let cloud = CloudService::new(config.timeout_ms);
+        Self { config, ollama, cloud }
     }
 
     pub fn with_base_url(base_url: String) -> Self {
         let config = AIConfig {
             ollama_base_url: base_url,
+            ..Default::default()
+        };
+        Self::new(config)
+    }
+
+    pub fn with_cloud_config(
+        provider: AIProvider,
+        api_key: String,
+        model: String,
+        base_url: Option<String>,
+    ) -> Self {
+        let config = AIConfig {
+            provider,
+            preferred_cloud_model: model,
+            cloud_api_key: Some(api_key),
+            cloud_base_url: base_url,
             ..Default::default()
         };
         Self::new(config)
@@ -74,16 +92,32 @@ impl AIService {
         model: Option<String>,
         stream_tx: mpsc::Sender<String>,
     ) -> Result<ChatResponse> {
-        let effective_model = model.unwrap_or_else(|| self.config.preferred_local_model.clone());
-        
         match self.config.provider {
             AIProvider::Ollama | AIProvider::Auto => {
-                match self.ollama.chat_stream(effective_model, messages.clone(), stream_tx.clone()).await {
+                let effective_model =
+                    model.clone().unwrap_or_else(|| self.config.preferred_local_model.clone());
+
+                match self
+                    .ollama
+                    .chat_stream(effective_model, messages.clone(), stream_tx.clone())
+                    .await
+                {
                     Ok(response) => Ok(response),
                     Err(e) => {
                         if matches!(self.config.provider, AIProvider::Auto) {
                             if let Some(ref api_key) = self.config.cloud_api_key {
-                                self.fallback_to_cloud(messages, api_key.clone(), stream_tx).await
+                                let cloud_model = model
+                                    .unwrap_or_else(|| self.config.preferred_cloud_model.clone());
+                                self.cloud
+                                    .chat_stream(
+                                        &AIProvider::OpenAI,
+                                        cloud_model,
+                                        messages,
+                                        api_key,
+                                        self.config.cloud_base_url.as_deref(),
+                                        stream_tx,
+                                    )
+                                    .await
                             } else {
                                 Err(e)
                             }
@@ -95,7 +129,18 @@ impl AIService {
             }
             AIProvider::OpenAI | AIProvider::Anthropic | AIProvider::Custom => {
                 if let Some(ref api_key) = self.config.cloud_api_key {
-                    self.fallback_to_cloud(messages, api_key.clone(), stream_tx).await
+                    let effective_model =
+                        model.unwrap_or_else(|| self.config.preferred_cloud_model.clone());
+                    self.cloud
+                        .chat_stream(
+                            &self.config.provider,
+                            effective_model,
+                            messages,
+                            api_key,
+                            self.config.cloud_base_url.as_deref(),
+                            stream_tx,
+                        )
+                        .await
                 } else {
                     Err(BeatPartnerError::Config(
                         "Cloud provider selected but no API key configured".to_string(),
@@ -103,17 +148,6 @@ impl AIService {
                 }
             }
         }
-    }
-
-    async fn fallback_to_cloud(
-        &self,
-        _messages: Vec<ChatMessage>,
-        _api_key: String,
-        _stream_tx: mpsc::Sender<String>,
-    ) -> Result<ChatResponse> {
-        Err(BeatPartnerError::AIService(
-            "Cloud fallback not yet implemented".to_string(),
-        ))
     }
 
     pub async fn list_available_models(&self) -> Result<Vec<OllamaModel>> {
@@ -135,20 +169,4 @@ impl AIService {
     pub async fn delete_model(&self, model_id: String) -> Result<()> {
         self.ollama.delete_model(model_id).await
     }
-
-    pub fn get_config(&self) -> &AIConfig {
-        &self.config
-    }
-
-    pub fn update_config(&mut self, config: AIConfig) {
-        self.config = config.clone();
-        self.ollama = OllamaService::new(config.ollama_base_url);
-    }
-}
-
-pub struct ProviderStatus {
-    pub provider: AIProvider,
-    pub available: bool,
-    pub latency_ms: Option<u64>,
-    pub error: Option<String>,
 }
