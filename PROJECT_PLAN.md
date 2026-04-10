@@ -601,10 +601,10 @@ CREATE TABLE model_preferences (
 ## 8. Feature Roadmap (Gefaseerd)
 
 ### Fase 1a: Scaffolding & Basis Layout *(must-have)*
-- [ ] Tauri 2.x project scaffolding + React + TypeScript + Tailwind
-- [ ] SQLite database setup + migratie-systeem
-- [ ] Error handling framework (Rust + frontend)
-- [ ] Basis layout: sidebar + main content area (simpele Liquid Glass, zonder advanced effecten)
+- [x] Tauri 2.x project scaffolding + React + TypeScript + Tailwind
+- [x] SQLite database setup + migratie-systeem
+- [x] Error handling framework (Rust + frontend)
+- [x] Basis layout: sidebar + main content area (simpele Liquid Glass, zonder advanced effecten)
 
 ### Fase 1b: Stores & Data *(must-have)* ✅
 - [x] Zustand stores (app, project, audio)
