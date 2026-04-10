@@ -11,8 +11,18 @@ pub fn list_projects(db: State<'_, Database>) -> Result<Vec<Project>> {
 }
 
 #[tauri::command]
+pub fn get_project(db: State<'_, Database>, id: i64) -> Result<Option<Project>> {
+    ProjectService::get_by_id(&db, id)
+}
+
+#[tauri::command]
 pub fn create_project(db: State<'_, Database>, name: String) -> Result<Project> {
     ProjectService::create(&db, &name)
+}
+
+#[tauri::command]
+pub fn update_project(db: State<'_, Database>, project: Project) -> Result<Project> {
+    ProjectService::update(&db, &project)
 }
 
 #[tauri::command]
