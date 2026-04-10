@@ -54,23 +54,32 @@ Desktop companion die beginners begeleidt door het muziek productie-proces met A
 
 **Kernprincipes iOS 26 Liquid Glass:**
 
-#### Niveau 1: Basis *(Fase 1a)*
+#### Niveau 1: Basis *(Fase 1a)* — HUIDIGE IMPLEMENTATIE
 1. **Diepte & Dimensie**
    ```css
-   /* Layer 1: Background */
-   backdrop-filter: blur(40px) saturate(180%);
+   /* Layer 1: Background panels */
+   backdrop-filter: blur(40px) saturate(200%);
+   background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+   border: 1px solid rgba(255,255,255,0.08);
    
    /* Layer 2: Cards */
-   backdrop-filter: blur(20px) saturate(150%);
+   backdrop-filter: blur(32px) saturate(180%);
+   background: linear-gradient(165deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 100%);
+   border: 1px solid rgba(255,255,255,0.12);
+   box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
    
    /* Layer 3: Interactive elements */
-   backdrop-filter: blur(10px) saturate(120%);
+   backdrop-filter: blur(20px) saturate(160%);
+   background: linear-gradient(165deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%);
+   border: 1px solid rgba(255,255,255,0.1);
+   box-shadow: 0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.08);
    ```
 
 2. **Reflectie & Glans**
-   - Linear gradients overlay voor glans effect
-   - Radial gradients voor spotlight highlights
-   - Subtle noise texture voor realism
+   - Linear gradients overlay voor glans effect (top 50%, 15% opacity)
+   - Shimmer highlight effect (45deg gradient sweep)
+   - Radial blur blobs voor achtergrond diepte
+   - Subtle noise texture voor realism (toekomstig)
 
 #### Niveau 2: Animaties *(Fase 2)*
 3. **Organische Vormen & Animaties**
@@ -92,16 +101,16 @@ Desktop companion die beginners begeleidt door het muziek productie-proces met A
    - CSS `transform: perspective(1000px) rotateX/Y()`
    - Mouse-tracking voor tilt effect (optioneel)
 
-**Kleuren:**
-- **Basis**: Donkere achtergrond (#0a0a0f, #12121a)
-- **Accenten**: Cyan (#00d4ff), Purple (#b347d9), Magenta (#ff0080)
-- **Glas**: rgba(255,255,255,0.05-0.15)
-- **Borders**: rgba(255,255,255,0.1-0.2)
+**Kleuren (geüpdatet na design overhaul):**
+- **Basis**: Diep zwart (#020204, #08080c, #0f0f14)
+- **Accenten**: Cyan (#22d3ee), Purple (#a78bfa), Magenta (#f472b6)
+- **Glas**: rgba(255,255,255,0.08-0.2)
+- **Borders**: rgba(255,255,255,0.12-0.3)
 
 **Typography:**
 - **Primary**: Inter, SF Pro Display
 - **Monospace**: SF Mono, JetBrains Mono (voor data: BPM, keys)
-- **Sizes**: 12px labels, 14px body, 16px headings, 24px titles
+- **Sizes**: 11px labels, 13px body, 15px headings, 20px titles
 
 ---
 

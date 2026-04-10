@@ -35,9 +35,119 @@ BeatPartner is een Tauri 2.x desktop applicatie (React + TypeScript frontend, Ru
 
 ### CSS / Styling
 - Tailwind utility classes als primaire styling methode
-- Custom CSS alleen voor Liquid Glass effecten die niet via Tailwind kunnen
+- **ALTIJD gebruik maken van Liquid Glass CSS classes** — zie Design System sectie
 - Geen inline styles tenzij dynamische waarden (bijv. berekende posities)
 - Donker thema is standaard en enige thema
+
+## Design System — Liquid Glass
+
+### Vereiste CSS Classes
+Gebruik deze classes voor consistente styling:
+
+**Containers & Panels:**
+- `.glass-background` — Hoofd panels, status bars (hoogste blur laag)
+- `.glass-card` — Cards, dialogs, sidebars (medium blur + gloss)
+- `.glass-gloss` — Extra glans overlay (combineer met glass-card)
+
+**Interactieve Elementen:**
+- `.glass-interactive` — Buttons, list items, clickable cards
+- `.glass-interactive.active` — Actieve geselecteerde state
+- `.btn-glass` — Basis button styling
+- `.btn-glass-primary` — Primaire actie button (cyan accent)
+
+### Kleuren Schema
+```css
+/* Surface (achtergronden) */
+--surface-primary: #020204    /* Diepste zwart */
+--surface-secondary: #08080c  /* Secundair */
+--surface-tertiary: #0f0f14   /* Lichter */
+
+/* Accenten */
+--accent-cyan: #22d3ee
+--accent-purple: #a78bfa
+--accent-magenta: #f472b6
+
+/* Glas effecten */
+--glass-bg: rgba(255,255,255,0.08)
+--glass-bg-hover: rgba(255,255,255,0.14)
+--glass-border: rgba(255,255,255,0.12)
+--glass-border-hover: rgba(255,255,255,0.18)
+```
+
+### Layout Patterns
+```tsx
+// App layout met achtergrond diepte
+<div className="bg-gradient-to-br from-surface-primary via-surface-secondary to-surface-tertiary">
+  {/* Blur blobs voor diepte */}
+  <div className="fixed inset-0 pointer-events-none">
+    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent-purple/10 rounded-full blur-[120px]" />
+    <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent-cyan/10 rounded-full blur-[100px]" />
+  </div>
+  
+  {/* Content */}
+  <div className="relative z-10">
+    <TitleBar />
+    <div className="flex gap-4 p-4">
+      <Sidebar />
+      <MainContent />
+    </div>
+  </div>
+</div>
+
+// Card met gloss
+<div className="glass-card glass-gloss p-4">
+  Content hier
+</div>
+
+// Interactief element
+<button className="glass-interactive px-4 py-2">
+  Label
+</button>
+
+// Actief element
+<button className="glass-interactive active px-4 py-2">
+  Selected
+</button>
+```
+
+### Iconen
+- Gebruik **Lucide React** voor alle iconen
+- Standaard size: 18px voor buttons, 20-24px voor headers
+- Standaard strokeWidth: 1.5 (2 voor actieve states)
+- Iconen in containers: 40-48px container met glass-achtige achtergrond
+
+### Typografie
+- **Labels**: 11px, text-white/40-60% (meta info)
+- **Body**: 13px, text-white/80-90% (hoofd tekst)
+- **Headings**: 15px, font-medium (sectie titels)
+- **Titles**: 20px, font-semibold (pagina titels)
+- **Monospace**: Altijd voor data (BPM, key, timestamps)
+
+### Spacing
+- Gap tussen panels: `gap-4` (16px)
+- Padding in panels: `p-4` (16px) of `p-6` (24px) voor dialogs
+- Kleinere gaps in lists: `gap-3` (12px)
+- Border radius: `rounded-xl` (12px) of `rounded-2xl` (16px) voor cards
+
+### Transitions
+- Standaard hover: `transition-all duration-200`
+- Spring easing voor interacties: `cubic-bezier(0.34, 1.56, 0.64, 1)`
+- Smooth easing: `cubic-bezier(0.4, 0, 0.2, 1)`
+
+### Wat te vermijden
+❌ Platte achtergronden (`bg-white/[0.02]` zonder glass effect)  
+❌ Simpele borders zonder backdrop-filter  
+❌ Inline styles voor statische styling  
+❌ Emoji als iconen (gebruik Lucide)  
+❌ Te veel verschillende alpha waarden  
+
+### Wat te doen
+✅ Altijd `glass-*` classes gebruiken voor containers  
+✅ Achtergrond blur blobs toevoegen voor diepte  
+✅ Consistente spacing met gap-4 en p-4  
+✅ Gloss overlay gebruiken voor premium feel  
+✅ Hover states met lift effect (`translateY(-2px)`)  
+✅ Lucide iconen met consistente sizing
 
 ## Bestandsstructuur
 
