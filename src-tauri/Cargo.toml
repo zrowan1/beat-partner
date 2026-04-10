@@ -1,0 +1,27 @@
+[package]
+name = "beat-partner"
+version = "0.1.0"
+description = "Desktop companion for music production with AI assistance"
+authors = ["you"]
+license = "MIT"
+edition = "2021"
+
+[lib]
+name = "beat_partner_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite_migration = "1"
+log = "0.4"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json"] }
+dirs-next = "2"
