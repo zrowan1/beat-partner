@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { X, Plus, FolderPlus, Loader2 } from "lucide-react";
 import { useProjectStore } from "@/stores/projectStore";
-import { GlassPanel } from "@/components/liquid-glass/GlassPanel";
 
 interface CreateProjectDialogProps {
   onClose: () => void;
@@ -33,7 +32,6 @@ export function CreateProjectDialog({ onClose }: CreateProjectDialogProps) {
     }
   };
 
-  // Close on backdrop click
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
@@ -42,15 +40,15 @@ export function CreateProjectDialog({ onClose }: CreateProjectDialogProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
       onClick={handleBackdropClick}
     >
-      <GlassPanel level="card" gloss className="max-w-md w-full">
-        <form onSubmit={handleSubmit} className="p-5">
+      <div className="glass-card glass-gloss max-w-md w-full">
+        <form onSubmit={handleSubmit} className="p-6">
           {/* Header */}
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-lg bg-accent-cyan/10 flex items-center justify-center">
-              <FolderPlus size={20} className="text-accent-cyan" />
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent-cyan/20 to-accent-purple/20 flex items-center justify-center">
+              <FolderPlus size={24} className="text-accent-cyan" />
             </div>
             <div className="flex-1">
               <h3 className="text-heading font-medium text-white/90">New Project</h3>
@@ -61,17 +59,17 @@ export function CreateProjectDialog({ onClose }: CreateProjectDialogProps) {
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 text-white/30 hover:text-white/60 hover:bg-white/[0.04] rounded-lg transition-colors"
+              className="glass-interactive p-2 text-white/40 hover:text-white"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
           </div>
 
           {/* Input */}
-          <div className="mb-5">
+          <div className="glass-interactive p-1 mb-5">
             <label
               htmlFor="project-name"
-              className="block text-label text-white/50 mb-2"
+              className="block text-label text-white/40 mb-2 px-3 pt-2"
             >
               Project Name
             </label>
@@ -82,7 +80,7 @@ export function CreateProjectDialog({ onClose }: CreateProjectDialogProps) {
               onChange={(e) => setName(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="e.g., Summer Vibes, Dark Techno, Chill Beats"
-              className="w-full px-3 py-2.5 bg-white/[0.03] border border-white/[0.08] rounded-lg text-body text-white placeholder:text-white/20 outline-none focus:border-accent-cyan/30 focus:bg-white/[0.05] transition-colors"
+              className="w-full px-3 pb-3 bg-transparent border-none text-body text-white placeholder:text-white/20 outline-none"
               autoFocus
               disabled={loading}
             />
@@ -90,9 +88,8 @@ export function CreateProjectDialog({ onClose }: CreateProjectDialogProps) {
 
           {/* Error */}
           {error && (
-            <div className="flex items-center gap-2 mb-4 text-label text-red-400 bg-red-500/5 px-3 py-2 rounded-lg">
-              <span className="w-1 h-1 rounded-full bg-red-400" />
-              {error}
+            <div className="glass-interactive border-red-500/20 bg-red-500/5 mb-5 px-4 py-3">
+              <p className="text-label text-red-400">{error}</p>
             </div>
           )}
 
@@ -101,14 +98,14 @@ export function CreateProjectDialog({ onClose }: CreateProjectDialogProps) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-body text-white/50 hover:text-white hover:bg-white/[0.04] rounded-lg transition-colors"
+              className="btn-glass text-white/50 hover:text-white"
               disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex items-center gap-2 px-4 py-2 bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20 rounded-lg text-body font-medium hover:bg-accent-cyan/15 transition-colors disabled:opacity-50"
+              className="btn-glass btn-glass-primary flex items-center gap-2 disabled:opacity-50"
               disabled={loading || !name.trim()}
             >
               {loading ? (
@@ -125,7 +122,7 @@ export function CreateProjectDialog({ onClose }: CreateProjectDialogProps) {
             </button>
           </div>
         </form>
-      </GlassPanel>
+      </div>
     </div>
   );
 }

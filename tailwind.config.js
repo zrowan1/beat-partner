@@ -5,22 +5,22 @@ export default {
     extend: {
       colors: {
         glass: {
-          bg: "rgba(255, 255, 255, 0.04)",
-          "bg-hover": "rgba(255, 255, 255, 0.08)",
-          "bg-active": "rgba(255, 255, 255, 0.12)",
-          border: "rgba(255, 255, 255, 0.06)",
-          "border-hover": "rgba(255, 255, 255, 0.12)",
-          "border-active": "rgba(255, 255, 255, 0.2)",
+          bg: "rgba(255, 255, 255, 0.08)",
+          "bg-hover": "rgba(255, 255, 255, 0.14)",
+          "bg-active": "rgba(255, 255, 255, 0.2)",
+          border: "rgba(255, 255, 255, 0.12)",
+          "border-hover": "rgba(255, 255, 255, 0.18)",
+          "border-active": "rgba(255, 255, 255, 0.3)",
         },
         surface: {
-          primary: "#050508",
-          secondary: "#0a0a0e",
-          tertiary: "#111118",
+          primary: "#020204",
+          secondary: "#08080c",
+          tertiary: "#0f0f14",
         },
         accent: {
-          cyan: "#06b6d4",
-          purple: "#8b5cf6",
-          magenta: "#ec4899",
+          cyan: "#22d3ee",
+          purple: "#a78bfa",
+          magenta: "#f472b6",
         },
       },
       fontFamily: {
