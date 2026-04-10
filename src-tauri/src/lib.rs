@@ -26,6 +26,15 @@ pub fn run() {
             commands::get_setting,
             commands::set_setting,
             commands::get_all_settings,
+            commands::check_ollama_status,
+            commands::list_ollama_models,
+            commands::download_model,
+            commands::delete_ollama_model,
+            commands::check_hardware_capabilities,
+            commands::get_model_recommendations,
+            commands::send_chat_message,
+            commands::load_chat_history,
+            commands::clear_chat_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -23,5 +23,10 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 rusqlite_migration = "1"
 log = "0.4"
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
 dirs-next = "2"
+sysinfo = "0.33"
+eventsource-stream = "0.2"
+futures = "0.3"
+bytes = "1"
+chrono = { version = "0.4", features = ["serde"] }

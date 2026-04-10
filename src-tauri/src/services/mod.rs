@@ -1,5 +1,11 @@
+mod ai_service;
+mod hardware_service;
+mod ollama_service;
 mod project_service;
 mod settings_service;
 
+pub use ai_service::{AIProvider, AIService};
+pub use hardware_service::HardwareService;
+pub use ollama_service::OllamaService;
 pub use project_service::ProjectService;
 pub use settings_service::SettingsService;

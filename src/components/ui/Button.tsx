@@ -1,14 +1,14 @@
 import type { LucideIcon } from "lucide-react";
 
 interface ButtonProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   variant?: "primary" | "secondary" | "ghost" | "danger";
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "icon";
   icon?: LucideIcon;
   iconPosition?: "left" | "right";
   loading?: boolean;
   disabled?: boolean;
-  onClick?: () => void;
+  onClick?: (e?: React.MouseEvent) => void;
   type?: "button" | "submit" | "reset";
   className?: string;
 }
@@ -38,12 +38,14 @@ export function Button({
     sm: "px-3 py-1.5 text-label rounded-md",
     md: "px-4 py-2 text-body rounded-lg",
     lg: "px-5 py-2.5 text-body rounded-lg",
+    icon: "w-8 h-8 p-0 rounded-lg",
   };
 
   const iconSizes = {
     sm: 14,
     md: 16,
     lg: 18,
+    icon: 16,
   };
 
   return (

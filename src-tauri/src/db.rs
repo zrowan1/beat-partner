@@ -29,6 +29,7 @@ impl Database {
     fn run_migrations(conn: &mut Connection) -> Result<()> {
         let migrations = Migrations::new(vec![
             M::up(include_str!("../migrations/001_initial_schema.sql")),
+            M::up(include_str!("../migrations/002_ai_model_management.sql")),
         ]);
 
         migrations.to_latest(conn)?;
