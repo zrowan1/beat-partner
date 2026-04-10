@@ -187,6 +187,30 @@ src/
 6. **Stream AI responses** — altijd streaming gebruiken voor chat, nooit wachten op volledige response.
 7. **Test op alle platforms** — backdrop-filter performance verschilt sterk per OS.
 
+## AI Model Management Conventies
+
+### Hardware Detectie (Rust)
+- Gebruik `sysinfo` crate voor cross-platform hardware detectie
+- Apple Silicon detectie via `std::env::consts::ARCH` + `uname`
+- Cache hardware info bij app startup, geen real-time monitoring
+- Return serializable struct voor frontend
+
+### Ollama Integratie
+- **Ollama HTTP API** — gebruik directe HTTP calls naar `localhost:11434`, niet CLI
+- **Streaming downloads** — gebruik Tauri's `Channel` voor progress updates
+- **Model cache** — cache model lijst in SQLite, refresh elke 5 minuten
+- **Default model** — fallback naar `llama3.2:latest` als beschikbaar
+
+### Use-Case Suggesties
+- Suggesties zijn **hints**, niet enforcements — gebruiker heeft altijd keuze
+- Sla gebruikersvoorkeuren op in `model_preferences` tabel
+- Update recommendations op basis van daadwerkelijk gebruik
+
+### Error Handling
+- Ollama niet running → duidelijke "Start Ollama" instructie
+- Onvoldoende RAM → waarschuwing + alternatieve modellen tonen
+- Download errors → retry logica met exponential backoff
+
 ## Development Commands
 
 ```bash

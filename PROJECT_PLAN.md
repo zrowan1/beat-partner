@@ -354,6 +354,250 @@ interface AIConfig {
 
 ---
 
+## 7.1 AI Model Management (Ollama)
+
+> **Design Philosophy**: Omdat BeatPartner primair lokaal draait met Ollama, is het essentieel dat de app gebruikers helpt bij het selecteren, downloaden en beheren van AI modellen. De app moet "out of the box" werken zonder dat de gebruiker handmatig modellen hoeft te installeren via command line.
+
+### Hardware Detectie & Model Aanbevelingen
+
+De app detecteert automatisch de systeemhardware en beveelt geschikte modellen aan:
+
+```rust
+// src-tauri/src/services/ollama_service.rs
+pub struct HardwareCapabilities {
+    pub total_memory_gb: f64,        // RAM
+    pub gpu_memory_gb: Option<f64>,  // VRAM (indien GPU beschikbaar)
+    pub cpu_cores: usize,
+    pub cpu_vendor: String,          // "Apple", "Intel", "AMD"
+    pub os: String,                  // "macos", "windows", "linux"
+    pub is_apple_silicon: bool,
+}
+
+pub enum ModelSizeTier {
+    Tiny,    // < 4GB  - Geschikt voor 8GB RAM
+    Small,   // 4-8GB  - Geschikt voor 16GB RAM
+    Medium,  // 8-16GB - Geschikt voor 32GB RAM
+    Large,   // > 16GB - Geschikt voor 64GB+ RAM
+}
+
+impl HardwareCapabilities {
+    pub fn recommended_model_tier(&self) -> ModelSizeTier {
+        // Apple Silicon heeft efficiënter memory management
+        let effective_memory = if self.is_apple_silicon {
+            self.total_memory_gb * 1.2
+        } else {
+            self.total_memory_gb
+        };
+        
+        match effective_memory as u32 {
+            0..=12 => ModelSizeTier::Tiny,
+            13..=20 => ModelSizeTier::Small,
+            21..=40 => ModelSizeTier::Medium,
+            _ => ModelSizeTier::Large,
+        }
+    }
+}
+```
+
+**Aanbevolen modellen per tier:**
+
+| Tier | RAM | Aanbevolen Modellen | Doel |
+|------|-----|---------------------|------|
+| Tiny | 8GB | `qwen2.5:3b`, `phi4:3.8b`, `gemma3:4b` | Snelle antwoorden, basis taken |
+| Small | 16GB | `llama3.2`, `mistral:7b`, `qwen2.5:7b` | Goede balans snelheid/kwaliteit |
+| Medium | 32GB | `llama3.1:8b`, `deepseek-r1:14b`, `qwen2.5:14b` | Complexe muziektheorie, arrangement tips |
+| Large | 64GB+ | `llama3.3:70b`, `mixtral:8x7b`, `qwq:32b` | Advanced productie hulp, detailanalyse |
+
+### Use-Case Gebaseerde Model Suggesties
+
+De app analyseert het gesprek en suggereert het beste model voor de taak:
+
+```typescript
+// types/ai.ts
+export type ModelUseCase = 
+  | 'general'           // Algemene vragen, quick tips
+  | 'theory'            // Muziektheorie, harmonieleer, akkoorden
+  | 'production'        // Productie-technieken, workflow
+  | 'sound-design'      // Synthesizer programmering, sound design
+  | 'mixing'            // Mixing advies, EQ, compressie
+  | 'mastering'         // Mastering technieken
+  | 'analysis'          // Gedetailleerde track analyse
+  | 'creative';         // Brainstorming, ideeën genereren
+
+export interface ModelRecommendation {
+  modelId: string;           // e.g., "llama3.2:latest"
+  name: string;              // e.g., "Llama 3.2"
+  sizeGb: number;
+  useCases: ModelUseCase[];
+  reasoning: string;         // Waarom dit model past bij de use case
+  estimatedSpeed: 'fast' | 'medium' | 'slow';
+  quality: 'basic' | 'good' | 'excellent';
+}
+
+// Voorbeeld suggesties:
+// - "Hoe maak ik een chord progression?" → Small model (theory = snel genoeg)
+// - "Analyseer mijn mix" → Medium/Large model (analysis = meer context nodig)
+// - "Geef 5 ideeën voor een drop" → Tiny model (creative = snelheid > kwaliteit)
+```
+
+**Model Suggestie Logica:**
+
+```typescript
+// services/ollamaService.ts
+export function suggestModelsForUseCase(
+  useCase: ModelUseCase,
+  hardware: HardwareCapabilities,
+  installedModels: OllamaModel[]
+): ModelRecommendation[] {
+  // 1. Filter modellen die passen in hardware
+  // 2. Sorteer op geschiktheid voor use case
+  // 3. Prioriteit: geïnstalleerde modellen eerst, dan downloads
+  // 4. Return top 3 aanbevelingen met uitleg
+}
+```
+
+### In-App Model Download & Installatie
+
+Gebruikers kunnen modellen direct vanuit de app downloaden zonder command line:
+
+```rust
+// src-tauri/src/commands/ollama.rs
+#[tauri::command]
+pub async fn download_model(
+    model_id: String,
+    on_progress: Channel<DownloadProgress>,
+) -> Result<OllamaModel> {
+    // Stream download progress naar frontend
+    // Ollama pull command via HTTP API
+    // Return model info wanneer klaar
+}
+
+#[tauri::command]
+pub async fn get_ollama_models() -> Result<Vec<OllamaModel>> {
+    // Lijst van geïnstalleerde modellen
+}
+
+#[tauri::command]
+pub async fn delete_ollama_model(model_id: String) -> Result<()> {
+    // Verwijder model om ruimte vrij te maken
+}
+
+#[tauri::command]
+pub fn check_hardware_capabilities() -> HardwareCapabilities {
+    // Detecteer RAM, GPU, CPU
+}
+```
+
+**Download Progress Interface:**
+
+```typescript
+// types/ollama.ts
+export interface DownloadProgress {
+  modelId: string;
+  status: 'downloading' | 'verifying' | 'completed' | 'error';
+  bytesDownloaded: number;
+  bytesTotal: number;
+  percentage: number;
+  speedMbps: number;
+  estimatedSecondsRemaining: number;
+  error?: string;
+}
+
+export interface OllamaModel {
+  id: string;                    // "llama3.2:latest"
+  name: string;                  // "Llama 3.2"
+  description: string;
+  sizeGb: number;
+  parameterCount: string;        // "3B", "7B", "70B"
+  useCases: ModelUseCase[];
+  installed: boolean;
+  downloadedAt?: string;
+  version: string;
+  quantization: string;          // "Q4_K_M", "Q8_0", etc.
+}
+```
+
+### Model Manager UI Componenten
+
+**ModelRecommendationsPanel**:
+- Toont hardware detectie resultaten
+- Lijst van aanbevolen modellen per use case
+- "Download" knop voor niet-geïnstalleerde modellen
+- Progress indicator tijdens download
+- "Geïnstalleerd" badge voor beschikbare modellen
+
+**ModelSelector**:
+- Dropdown in chat interface
+- Groepeer modellen: "Geïnstalleerd" vs "Aanbevolen"
+- Toon model info: grootte, snelheid, geschiktheid
+- Snelle switch tussen modellen
+
+**HardwareInfoCard**:
+- RAM: "32GB detected — Medium models recommended"
+- GPU: "Apple Silicon M3 — Optimized for local inference"
+- Status: "Ready for AI chat" / "Consider downloading a model"
+
+### First-Run Experience
+
+Bij eerste start van de app:
+
+1. **Hardware Scan**: Detecteer systeem specificaties
+2. **Ollama Check**: Controleer of Ollama is geïnstalleerd
+3. **Model Aanbeveling**: Toon 2-3 beste modellen voor dit systeem
+4. **Quick Download**: "Download Llama 3.2 (4GB) — Recommended for your system"
+5. **Alternative**: "Skip — I'll configure AI later"
+
+### Database Schema Uitbreiding
+
+```sql
+-- Ollama modellen cache (voor snelle lookup zonder Ollama API call)
+CREATE TABLE ollama_models (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  size_bytes INTEGER NOT NULL,
+  parameter_count TEXT,
+  use_cases TEXT,              -- JSON array of ModelUseCase
+  quantization TEXT,
+  downloaded_at DATETIME,
+  last_used_at DATETIME,
+  is_favorite BOOLEAN DEFAULT FALSE
+);
+
+-- Model download geschiedenis
+CREATE TABLE model_downloads (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  model_id TEXT NOT NULL,
+  status TEXT NOT NULL,        -- 'pending', 'downloading', 'completed', 'failed', 'cancelled'
+  bytes_total INTEGER,
+  bytes_downloaded INTEGER,
+  started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  completed_at DATETIME,
+  error_message TEXT,
+  FOREIGN KEY (model_id) REFERENCES ollama_models(id)
+);
+
+-- Default model preferences per use case
+CREATE TABLE model_preferences (
+  use_case TEXT PRIMARY KEY,
+  preferred_model_id TEXT NOT NULL,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Error Handling & Edge Cases
+
+| Scenario | Handling |
+|----------|----------|
+| Ollama niet geïnstalleerd | Toon installatie-instructies per OS |
+| Onvoldoende schijfruimte | Waarschuwing voor download, cleanup suggesties |
+| Download onderbroken | Hervatten mogelijk (Ollama ondersteunt partial pulls) |
+| Model corrupt | Verifiëren hash, opnieuw downloaden suggestie |
+| Hardware te zwak | Fallback naar cloud provider, of Tiny models aanbevelen |
+| Netwerk timeout | Retry met exponentiële backoff, cancel optie |
+
+---
+
 ## 8. Feature Roadmap (Gefaseerd)
 
 ### Fase 1a: Scaffolding & Basis Layout *(must-have)*
@@ -362,16 +606,19 @@ interface AIConfig {
 - [ ] Error handling framework (Rust + frontend)
 - [ ] Basis layout: sidebar + main content area (simpele Liquid Glass, zonder advanced effecten)
 
-### Fase 1b: Stores & Data *(must-have)*
-- [ ] Zustand stores (app, project, audio)
-- [ ] Project CRUD (aanmaken, openen, verwijderen)
-- [ ] Settings persistence (key-value store)
+### Fase 1b: Stores & Data *(must-have)* ✅
+- [x] Zustand stores (app, project, audio)
+- [x] Project CRUD (aanmaken, openen, verwijderen)
+- [x] Settings persistence (key-value store)
 
-### Fase 1c: AI Chat *(must-have)*
+### Fase 1c: AI Chat & Model Management *(must-have)*
 - [ ] AI Chat interface met streaming
 - [ ] Ollama integratie (lokaal)
 - [ ] Cloud provider fallback (OpenAI / Anthropic)
 - [ ] Chat history opslag in SQLite
+- [ ] **Hardware detectie & model aanbevelingen**
+- [ ] **Model download & installatie vanuit de app**
+- [ ] **Use-case gebaseerde model suggesties**
 
 ### Fase 2: Music Tools *(must-have)*
 - [ ] BPM/Key Detector (audio analyse via Rust + aubio/essentia)
