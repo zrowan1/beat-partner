@@ -32,6 +32,8 @@ BeatPartner is een Tauri 2.x desktop applicatie (React + TypeScript frontend, Ru
 - Business logic in `src-tauri/src/services/`
 - Data models in `src-tauri/src/models/` met `serde::Serialize` + `serde::Deserialize`
 - Gebruik `Result<T, BeatPartnerError>` als return type voor commands
+- **Alle structs die naar de frontend worden gestuurd MOETEN `#[serde(rename_all = "camelCase")]` hebben** — TypeScript interfaces gebruiken camelCase, Rust structs snake_case. Zonder deze attribuut worden velden zoals `use_cases` niet herkend als `useCases` in TypeScript, wat een runtime crash veroorzaakt.
+- Enums die naar de frontend worden gestuurd als string waarden gebruiken `#[serde(rename_all = "kebab-case")]` zodat ze overeenkomen met de TypeScript union types (bijv. `SoundDesign` → `"sound-design"`)
 
 ### CSS / Styling
 - Tailwind utility classes als primaire styling methode
@@ -134,20 +136,57 @@ Gebruik deze classes voor consistente styling:
 - Spring easing voor interacties: `cubic-bezier(0.34, 1.56, 0.64, 1)`
 - Smooth easing: `cubic-bezier(0.4, 0, 0.2, 1)`
 
+### Modals & Dialogs
+
+> **WKWebView compositor bug**: `backdrop-filter` op een element dat zich binnen een `position: fixed` full-screen overlay bevindt, zorgt in Tauri (WKWebView op macOS) voor een volledig zwart scherm. Dit is een bekende WebKit-bug.
+
+**Regels voor elke modal of dialog:**
+1. Gebruik **`createPortal(…, document.body)`** — render altijd buiten de component tree zodat geen enkel CSS stacking context of containing block interfereert
+2. De **outer overlay** (`fixed inset-0`) gebruikt `bg-black/75` — geen `backdrop-filter`/`backdrop-blur-*`
+3. De **inner card** gebruikt een solid achtergrond (`style={{ background: "#0f0f14" }}` of een surface kleur) — **geen `glass-card`** op de modal container zelf
+4. Binnenste elementen (lijsten, info-kaarten) mogen `glass-card` en `glass-interactive` wél gebruiken
+
+```tsx
+// ✅ Correct modal patroon
+return createPortal(
+  <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75">
+    <div
+      className="w-full max-w-2xl rounded-2xl border border-white/10 shadow-2xl"
+      style={{ background: "#0f0f14" }}
+    >
+      {/* inner content mag glass-* gebruiken */}
+    </div>
+  </div>,
+  document.body
+);
+
+// ❌ Fout — veroorzaakt zwart scherm in Tauri
+return (
+  <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
+    <div className="glass-card">...</div>
+  </div>
+);
+```
+
 ### Wat te vermijden
-❌ Platte achtergronden (`bg-white/[0.02]` zonder glass effect)  
-❌ Simpele borders zonder backdrop-filter  
+❌ Platte achtergronden (`bg-white/[0.02]` zonder glass effect) — *buiten modals*  
+❌ Simpele borders zonder backdrop-filter — *buiten modals*  
 ❌ Inline styles voor statische styling  
 ❌ Emoji als iconen (gebruik Lucide)  
 ❌ Te veel verschillende alpha waarden  
+❌ `backdrop-blur-*` of `backdrop-filter` op full-screen overlays/modals  
+❌ `glass-card` als container van een modal (gebruik solid achtergrond)  
+❌ Modals renderen zonder `createPortal` — CSS stacking contexts in de app tree breken `z-index` en `position: fixed`
 
 ### Wat te doen
-✅ Altijd `glass-*` classes gebruiken voor containers  
+✅ Altijd `glass-*` classes gebruiken voor containers — *buiten modals*  
 ✅ Achtergrond blur blobs toevoegen voor diepte  
 ✅ Consistente spacing met gap-4 en p-4  
 ✅ Gloss overlay gebruiken voor premium feel  
 ✅ Hover states met lift effect (`translateY(-2px)`)  
-✅ Lucide iconen met consistente sizing
+✅ Lucide iconen met consistente sizing  
+✅ `createPortal(…, document.body)` voor elke modal of dialog  
+✅ Solid achtergrondkleur (`surface-tertiary` = `#0f0f14`) voor modal containers
 
 ## Bestandsstructuur
 

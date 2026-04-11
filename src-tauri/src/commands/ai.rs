@@ -11,6 +11,7 @@ use crate::services::{AIService, HardwareService};
 
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AIMessage {
     pub id: i64,
     pub project_id: Option<i64>,
@@ -107,7 +108,7 @@ pub fn get_model_recommendations(
         "general" => Some(ModelUseCase::General),
         "theory" => Some(ModelUseCase::Theory),
         "production" => Some(ModelUseCase::Production),
-        "sound_design" => Some(ModelUseCase::SoundDesign),
+        "sound-design" => Some(ModelUseCase::SoundDesign),
         "mixing" => Some(ModelUseCase::Mixing),
         "mastering" => Some(ModelUseCase::Mastering),
         "analysis" => Some(ModelUseCase::Analysis),

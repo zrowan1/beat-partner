@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Bot, Check, Download, HardDrive, Loader2, X } from "lucide-react";
 import { useAIStore } from "@/stores/aiStore";
 import { Button } from "@/components/ui/Button";
@@ -246,9 +247,12 @@ export function FirstRunModelSetup({ onComplete, onSkip }: FirstRunModelSetupPro
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="glass-card w-full max-w-md">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75">
+      <div
+        className="w-full max-w-md rounded-2xl border border-white/10 shadow-2xl"
+        style={{ background: "#0f0f14" }}
+      >
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <h2 className="text-heading font-semibold text-white/90">
             AI Setup
@@ -262,6 +266,7 @@ export function FirstRunModelSetup({ onComplete, onSkip }: FirstRunModelSetupPro
 
         <div className="p-4">{renderStep()}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

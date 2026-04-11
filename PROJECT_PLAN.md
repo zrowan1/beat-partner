@@ -51,6 +51,12 @@ Desktop companion die beginners begeleidt door het muziek productie-proces met A
 >
 > **Performance waarschuwing**: Meerdere lagen `backdrop-filter` zijn GPU-intensief,
 > vooral op Windows/Linux. Test altijd op alle platforms bij het toevoegen van visuele lagen.
+>
+> **WKWebView / Tauri waarschuwing**: `backdrop-filter` op een `position: fixed` full-screen
+> overlay veroorzaakt een volledig zwart scherm in Tauri op macOS (WKWebView compositor bug).
+> **Modals en dialogs mogen NOOIT `backdrop-filter` of `glass-card` gebruiken op hun outer container.**
+> Gebruik `createPortal(…, document.body)` + een solid achtergrondkleur (`#0f0f14`).
+> Zie `AGENTS.md` → "Modals & Dialogs" voor het correcte patroon.
 
 **Kernprincipes iOS 26 Liquid Glass:**
 

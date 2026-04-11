@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OllamaModel {
     pub id: String,
     pub name: String,
@@ -15,7 +16,7 @@ pub struct OllamaModel {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "kebab-case")]
 pub enum ModelUseCase {
     General,
     Theory,
@@ -29,6 +30,7 @@ pub enum ModelUseCase {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HardwareCapabilities {
     pub total_memory_gb: f64,
     pub gpu_memory_gb: Option<f64>,
@@ -39,6 +41,7 @@ pub struct HardwareCapabilities {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ModelRecommendation {
     pub model_id: String,
     pub name: String,
@@ -50,6 +53,7 @@ pub struct ModelRecommendation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DownloadProgress {
     pub model_id: String,
     pub status: String,

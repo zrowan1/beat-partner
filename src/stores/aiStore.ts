@@ -143,13 +143,10 @@ export const useAIStore = create<AIState>((set, get) => ({
       });
     } catch (error) {
       console.error("Failed to load models:", error);
-      set({ 
+      set({
         models: [],
         isLoadingModels: false,
-        selectedModel: null,
       });
-      // Don't throw here - let the caller decide if this is an error
-      throw error;
     }
   },
 
