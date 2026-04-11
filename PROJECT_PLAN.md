@@ -325,9 +325,11 @@ pub type Result<T> = std::result::Result<T, BeatPartnerError>;
 | Provider | Type | Gebruik |
 |----------|------|---------|
 | **Ollama** | Lokaal | Primair — gratis, privacy-vriendelijk |
+| **llama.cpp** | Lokaal | Alternatief voor Ollama — hogere performance, directe GPU-toegang, GGUF modellen |
 | **OpenAI** | Cloud | Fallback — GPT-4o, GPT-4o-mini |
 | **Anthropic** | Cloud | Fallback — Claude Sonnet, Claude Haiku |
-| **OpenAI-compatible** | Cloud | Custom endpoints (bijv. OpenRouter, Groq) |
+| **OpenRouter** | Cloud | Aggregator — 200+ modellen via één API key (gratis + betaalde opties) |
+| **OpenAI-compatible** | Cloud | Custom endpoints (bijv. Groq, Together AI) |
 
 ### Config & Types
 ```typescript
@@ -348,9 +350,10 @@ interface AIConfig {
 
 // Fallback Strategy:
 // 1. Try local Ollama (primary)
-// 2. If unavailable && apiKey exists → use configured cloud provider
-// 3. If both fail → show offline message with retry option
-// 4. Auto-switch back to local when available again
+// 2. If unavailable → try llama.cpp server (if configured)
+// 3. If both unavailable && apiKey exists → use configured cloud provider (OpenAI / Anthropic / OpenRouter)
+// 4. If all fail → show offline message with retry option
+// 5. Auto-switch back to local when available again
 
 // Streaming:
 // - Chat responses worden altijd gestreamed (SSE voor cloud, Ollama native)
@@ -604,6 +607,183 @@ CREATE TABLE model_preferences (
 
 ---
 
+## 7.2 llama.cpp Integratie
+
+> **Design Philosophy**: llama.cpp biedt hogere inference-performance dan Ollama door minder overhead en directere GPU-toegang (Metal op macOS, CUDA op NVIDIA). Geschikt voor gevorderde gebruikers die al GGUF-bestanden beheren. BeatPartner behandelt llama.cpp als een optionele lokale provider naast Ollama — geen vervanging.
+
+### Hoe het werkt
+
+De gebruiker draait zelf `llama-server -m model.gguf --port 8080`. BeatPartner detecteert de server en gebruikt deze als provider. Er is **geen in-app download** voor llama.cpp modellen — de gebruiker downloadt GGUF-bestanden zelf (bijv. via Hugging Face).
+
+**llama.cpp server endpoints (OpenAI-compatibel):**
+- `GET /health` — server status check
+- `GET /v1/models` — lijst van geladen modellen (typisch 1 tegelijk)
+- `POST /v1/chat/completions` — streaming chat (SSE, zelfde formaat als OpenAI)
+
+### Backend (Rust)
+
+Nieuwe service `src-tauri/src/services/llamacpp_service.rs`:
+
+```rust
+pub struct LlamaCppService {
+    base_url: String,   // Default: http://localhost:8080
+    client: reqwest::Client,
+}
+
+impl LlamaCppService {
+    pub async fn check_status(&self) -> Result<LlamaCppStatus>;
+    pub async fn list_models(&self) -> Result<Vec<LlamaCppModel>>;
+    pub async fn chat(
+        &self,
+        messages: Vec<ChatMessage>,
+        model: &str,
+        on_chunk: impl Fn(String),
+    ) -> Result<ChatResponse>;
+}
+
+pub struct LlamaCppStatus {
+    pub running: bool,
+    pub version: Option<String>,
+    pub base_url: String,
+}
+```
+
+Nieuwe Tauri command in `src-tauri/src/commands/ai.rs`:
+
+```rust
+#[tauri::command]
+pub async fn check_llamacpp_status(base_url: Option<String>) -> Result<LlamaCppStatus>;
+
+#[tauri::command]
+pub async fn list_llamacpp_models(base_url: Option<String>) -> Result<Vec<LlamaCppModel>>;
+```
+
+`AIProvider` type uitbreiden: `"llamacpp"` toevoegen.
+
+### Frontend
+
+```typescript
+// types/ai.ts
+type AIProvider = 'ollama' | 'llamacpp' | 'openai' | 'anthropic' | 'openrouter' | 'custom' | 'auto';
+
+interface AIConfig {
+  // ... bestaande velden
+  llamaCppBaseUrl: string;   // Default: http://localhost:8080
+}
+
+interface LlamaCppStatus {
+  running: boolean;
+  version?: string;
+  baseUrl: string;
+}
+```
+
+**Settings UI:**
+- Base URL invoerveld (default `http://localhost:8080`)
+- Status indicator: groen "Running" / rood "Not detected"
+- Link naar llama.cpp releases + instructies voor GGUF downloaden
+
+**ModelSelector:**
+- llama.cpp modellen als aparte groep "Local (llama.cpp)"
+- Typisch 1 actief model — toon welk model geladen is
+
+### Verschillen vs Ollama
+
+| Aspect | Ollama | llama.cpp |
+|--------|--------|-----------|
+| Model beheer | In-app download + delete | Handmatig (GGUF bestanden) |
+| Gelijktijdige modellen | Meerdere | Typisch 1 |
+| Performance | Goed | Beter (minder overhead) |
+| Gebruikersniveau | Beginner-vriendelijk | Gevorderd |
+| Installatie | Installer beschikbaar | Zelf compileren of binary |
+
+---
+
+## 7.3 OpenRouter Integratie
+
+> **Design Philosophy**: OpenRouter geeft gebruikers toegang tot 200+ modellen — inclusief Claude, GPT-4, Llama, Mistral en meer — via één API key. Veel modellen zijn gratis of zeer goedkoop. OpenRouter is volledig OpenAI-compatibel en fungeert als een volwaardige cloud provider naast OpenAI en Anthropic.
+
+### Hoe het werkt
+
+- Base URL: `https://openrouter.ai/api/v1`
+- Authenticatie: Bearer token (API key van openrouter.ai)
+- Model listing: `GET /v1/models` — retourneert naam, pricing, context window, capabilities
+- Chat: `POST /v1/chat/completions` — zelfde SSE streaming formaat als OpenAI
+- Aanbevolen identificatie headers: `HTTP-Referer: https://beatpartner.app`, `X-Title: BeatPartner`
+
+### Backend (Rust)
+
+Uitbreiding van `src-tauri/src/services/cloud_service.rs`:
+
+```rust
+// OpenRouter gebruikt het OpenAI-formaat maar met extra headers
+pub async fn chat_openrouter(
+    &self,
+    messages: Vec<ChatMessage>,
+    model: &str,
+    api_key: &str,
+    on_chunk: impl Fn(String),
+) -> Result<ChatResponse> {
+    // POST https://openrouter.ai/api/v1/chat/completions
+    // Headers: Authorization: Bearer <key>
+    //          HTTP-Referer: https://beatpartner.app
+    //          X-Title: BeatPartner
+}
+
+pub async fn fetch_openrouter_models(api_key: &str) -> Result<Vec<OpenRouterModel>>;
+```
+
+Nieuwe Tauri command:
+
+```rust
+#[tauri::command]
+pub async fn fetch_openrouter_models(api_key: String) -> Result<Vec<OpenRouterModel>>;
+```
+
+### Frontend Types
+
+```typescript
+// types/ai.ts
+export interface OpenRouterModel {
+  id: string;             // "anthropic/claude-sonnet-4-5"
+  name: string;           // "Claude Sonnet 4.5"
+  description?: string;
+  contextLength: number;  // Max context tokens
+  pricing: {
+    prompt: number;       // $ per 1M tokens (0 = gratis)
+    completion: number;
+  };
+  isFree: boolean;        // true als prompt + completion = $0
+  topProvider: string;    // "Anthropic", "Meta", "Mistral", etc.
+}
+```
+
+**Settings UI:**
+- API key invoerveld (encrypted opslaan via tauri-plugin-store)
+- "Fetch Models" knop → laad beschikbare modellen
+- Model browser met filters:
+  - Gratis / Betaald toggle
+  - Filter op provider (Anthropic, OpenAI, Meta, etc.)
+  - Zoeken op naam
+- Toon pricing per model (gratis modellen gemarkeerd)
+
+**ModelSelector:**
+- OpenRouter modellen als aparte groep "Cloud (OpenRouter)"
+- Gratis modellen gemarkeerd met "Free" badge
+- Toon context window grootte als indicator voor geschiktheid
+
+### Voordelen vs "custom" provider
+
+| Aspect | Custom Provider | OpenRouter |
+|--------|----------------|------------|
+| Setup | Handmatig base URL | Één API key |
+| Model overzicht | Onbekend | Volledige browser |
+| Pricing info | Niet beschikbaar | Per model zichtbaar |
+| Gratis modellen | Onbekend | Duidelijk gemarkeerd |
+| Provider diversiteit | Beperkt | 200+ modellen |
+
+---
+
 ## 8. Feature Roadmap (Gefaseerd)
 
 ### Fase 1a: Scaffolding & Basis Layout *(must-have)*
@@ -619,12 +799,17 @@ CREATE TABLE model_preferences (
 
 ### Fase 1c: AI Chat & Model Management *(must-have)*
 - [ ] AI Chat interface met streaming
-- [ ] Ollama integratie (lokaal)
+- [ ] Ollama integratie (lokaal, primair)
 - [ ] Cloud provider fallback (OpenAI / Anthropic)
 - [ ] Chat history opslag in SQLite
 - [ ] **Hardware detectie & model aanbevelingen**
 - [ ] **Model download & installatie vanuit de app**
 - [ ] **Use-case gebaseerde model suggesties**
+- [ ] **llama.cpp server integratie** (status check, model listing, streaming chat)
+- [ ] **llama.cpp provider UI** (base URL configuratie, server status indicator, GGUF instructies)
+- [ ] **OpenRouter provider** (API key beheer, model browser, streaming chat)
+- [ ] **OpenRouter model browser UI** (free/paid filter, provider filter, prijsindicator)
+- [ ] **Fallback volgorde** updaten: Ollama → llama.cpp → OpenRouter/Cloud
 
 ### Fase 2: Music Tools *(must-have)*
 - [ ] BPM/Key Detector (audio analyse via Rust + aubio/essentia)
