@@ -28,6 +28,8 @@ pub fn run() {
             commands::get_all_settings,
             commands::check_ollama_status,
             commands::list_ollama_models,
+            commands::check_llamacpp_status,
+            commands::list_llamacpp_models,
             commands::download_model,
             commands::delete_ollama_model,
             commands::check_hardware_capabilities,

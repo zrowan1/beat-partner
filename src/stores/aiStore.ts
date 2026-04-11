@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type {
   AIProvider,
   AIMessage,
+  LlamaCppModel,
   OllamaModel,
   HardwareCapabilities,
   ModelRecommendation,
@@ -40,6 +41,12 @@ interface AIState {
   streamingContent: string;
   chatHistoryLimit: number;
 
+  // llama.cpp
+  llamaCppBaseUrl: string;
+  llamaCppStatus: "unknown" | "available" | "unavailable";
+  llamaCppModels: LlamaCppModel[];
+  isLoadingLlamaCppModels: boolean;
+
   // UI State
   showModelManager: boolean;
   ollamaStatus: "unknown" | "available" | "unavailable";
@@ -50,12 +57,16 @@ interface AIState {
   setCloudApiKey: (key: string | null) => void;
   setCloudBaseUrl: (url: string | null) => void;
   setSelectedModel: (modelId: string | null) => void;
+  setLlamaCppBaseUrl: (url: string) => void;
+  selectModel: (modelId: string, provider: AIProvider) => void;
   setChatHistoryLimit: (limit: number) => void;
   toggleModelManager: () => void;
 
   // Async actions
   checkOllamaStatus: () => Promise<void>;
+  checkLlamaCppStatus: () => Promise<void>;
   loadModels: () => Promise<void>;
+  loadLlamaCppModels: () => Promise<void>;
   loadHardwareInfo: () => Promise<void>;
   loadRecommendations: (useCase?: ModelUseCase) => Promise<void>;
   downloadModel: (modelId: string) => Promise<void>;
@@ -72,7 +83,7 @@ interface AIState {
 export const useAIStore = create<AIState>((set, get) => ({
   // Initial state
   provider: "auto",
-  availableProviders: ["auto", "ollama", "openai", "anthropic", "custom"],
+  availableProviders: ["auto", "ollama", "llama_cpp", "openai", "anthropic", "custom"],
   ollamaBaseUrl: "http://localhost:11434",
   cloudApiKey: null,
   cloudBaseUrl: null,
@@ -93,6 +104,11 @@ export const useAIStore = create<AIState>((set, get) => ({
   streamingContent: "",
   chatHistoryLimit: DEFAULT_CHAT_HISTORY_LIMIT,
 
+  llamaCppBaseUrl: "http://localhost:8080",
+  llamaCppStatus: "unknown",
+  llamaCppModels: [],
+  isLoadingLlamaCppModels: false,
+
   showModelManager: false,
   ollamaStatus: "unknown",
 
@@ -106,6 +122,10 @@ export const useAIStore = create<AIState>((set, get) => ({
   setCloudBaseUrl: (url) => set({ cloudBaseUrl: url }),
 
   setSelectedModel: (modelId) => set({ selectedModel: modelId }),
+
+  setLlamaCppBaseUrl: (url) => set({ llamaCppBaseUrl: url }),
+
+  selectModel: (modelId, provider) => set({ selectedModel: modelId, provider }),
 
   setChatHistoryLimit: (limit) => set({ chatHistoryLimit: limit }),
 
@@ -126,6 +146,33 @@ export const useAIStore = create<AIState>((set, get) => ({
     } catch (error) {
       console.error("Ollama status check failed:", error);
       set({ ollamaStatus: "unavailable" });
+    }
+  },
+
+  checkLlamaCppStatus: async () => {
+    try {
+      const { llamaCppBaseUrl } = get();
+      const status = await aiApi.checkLlamaCppStatus(llamaCppBaseUrl);
+      set({ llamaCppStatus: status.available ? "available" : "unavailable" });
+      if (status.available) {
+        const modelInfo = status.modelLoaded ? ` — ${status.modelLoaded}` : "";
+        toast.success(`llama.cpp connected${modelInfo}`);
+      }
+    } catch (error) {
+      console.error("llama.cpp status check failed:", error);
+      set({ llamaCppStatus: "unavailable" });
+    }
+  },
+
+  loadLlamaCppModels: async () => {
+    set({ isLoadingLlamaCppModels: true });
+    try {
+      const { llamaCppBaseUrl } = get();
+      const llamaCppModels = await aiApi.listLlamaCppModels(llamaCppBaseUrl);
+      set({ llamaCppModels, isLoadingLlamaCppModels: false });
+    } catch (error) {
+      console.error("Failed to load llama.cpp models:", error);
+      set({ llamaCppModels: [], isLoadingLlamaCppModels: false });
     }
   },
 
@@ -232,7 +279,7 @@ export const useAIStore = create<AIState>((set, get) => ({
   },
 
   sendMessage: async (content: string) => {
-    const { sessionId, selectedModel, provider, ollamaBaseUrl, cloudApiKey, messages } = get();
+    const { sessionId, selectedModel, provider, ollamaBaseUrl, llamaCppBaseUrl, cloudApiKey, messages } = get();
 
     if (!selectedModel) {
       toast.error("Please select a model first");
@@ -253,6 +300,8 @@ export const useAIStore = create<AIState>((set, get) => ({
       streamingContent: "",
     });
 
+    const effectiveBaseUrl = provider === "llama_cpp" ? llamaCppBaseUrl : ollamaBaseUrl;
+
     try {
       let streamedContent = "";
 
@@ -262,7 +311,7 @@ export const useAIStore = create<AIState>((set, get) => ({
         content,
         model: selectedModel,
         provider,
-        baseUrl: ollamaBaseUrl,
+        baseUrl: effectiveBaseUrl,
         apiKey: cloudApiKey ?? undefined,
         onChunk: (chunk) => {
           streamedContent += chunk;

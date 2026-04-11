@@ -1,4 +1,10 @@
-export type AIProvider = "ollama" | "openai" | "anthropic" | "custom" | "auto";
+export type AIProvider =
+  | "ollama"
+  | "llama_cpp"
+  | "openai"
+  | "anthropic"
+  | "custom"
+  | "auto";
 
 export type ModelUseCase =
   | "general"
@@ -17,9 +23,22 @@ export interface AIConfig {
   cloudApiKey?: string;
   cloudBaseUrl?: string;
   ollamaBaseUrl: string;
+  llamaCppBaseUrl: string;
   timeoutMs: number;
   maxRetries: number;
   streamResponses: boolean;
+}
+
+export interface LlamaCppStatus {
+  available: boolean;
+  modelLoaded?: string;
+  error?: string;
+}
+
+export interface LlamaCppModel {
+  id: string;
+  name: string;
+  ownedBy: string;
 }
 
 export interface AIMessage {

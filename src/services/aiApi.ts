@@ -5,6 +5,8 @@ import type {
   AIProvider,
   DownloadProgress,
   HardwareCapabilities,
+  LlamaCppModel,
+  LlamaCppStatus,
   ModelRecommendation,
   ModelUseCase,
   OllamaModel,
@@ -14,6 +16,15 @@ import type {
 // Ollama status check
 export async function checkOllamaStatus(baseUrl?: string): Promise<OllamaStatus> {
   return invoke("check_ollama_status", { baseUrl });
+}
+
+// llama.cpp status check and model listing
+export async function checkLlamaCppStatus(baseUrl?: string): Promise<LlamaCppStatus> {
+  return invoke("check_llamacpp_status", { baseUrl });
+}
+
+export async function listLlamaCppModels(baseUrl?: string): Promise<LlamaCppModel[]> {
+  return invoke("list_llamacpp_models", { baseUrl });
 }
 
 // Model management
