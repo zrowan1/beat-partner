@@ -158,15 +158,18 @@ impl OllamaService {
                             0
                         };
 
-                        let status = if progress.status.contains("pulling") {
-                            "downloading"
-                        } else if progress.status.contains("verifying") {
-                            "verifying"
-                        } else if progress.status.contains("complete") {
+                        let status = if progress.status == "success" || progress.status.contains("complete") {
                             "completed"
+                        } else if progress.status.contains("verifying")
+                            || progress.status.contains("writing")
+                            || progress.status.contains("removing")
+                        {
+                            "verifying"
                         } else {
                             "downloading"
                         };
+
+                        let is_completed = status == "completed";
 
                         let download_progress = DownloadProgress {
                             model_id: model_id.clone(),
@@ -181,6 +184,10 @@ impl OllamaService {
 
                         let _ = progress_tx.send(download_progress).await;
                         last_bytes = current_bytes;
+
+                        if is_completed {
+                            return Ok(());
+                        }
                     }
                 }
                 Err(e) => {
@@ -199,6 +206,19 @@ impl OllamaService {
                 }
             }
         }
+
+        // Stream ended without explicit "success" — send a final completed event
+        let final_progress = DownloadProgress {
+            model_id: model_id.clone(),
+            status: "completed".to_string(),
+            bytes_downloaded: total_bytes,
+            bytes_total: total_bytes,
+            percentage: 100.0,
+            speed_mbps: 0.0,
+            estimated_seconds_remaining: 0,
+            error: None,
+        };
+        let _ = progress_tx.send(final_progress).await;
 
         Ok(())
     }

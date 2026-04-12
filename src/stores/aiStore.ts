@@ -272,9 +272,19 @@ export const useAIStore = create<AIState>((set, get) => ({
 
         if (progress.status === "completed") {
           toast.success(`${modelId} downloaded!`, { id: `download-${modelId}` });
+          set((state) => {
+            const next = new Map(state.activeDownloads);
+            next.delete(modelId);
+            return { activeDownloads: next };
+          });
           get().loadModels();
         } else if (progress.status === "error") {
           toast.error(`Failed to download ${modelId}`, { id: `download-${modelId}` });
+          set((state) => {
+            const next = new Map(state.activeDownloads);
+            next.delete(modelId);
+            return { activeDownloads: next };
+          });
         }
       });
     } catch (error) {
