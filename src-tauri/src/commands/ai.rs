@@ -5,7 +5,7 @@ use crate::db::Database;
 use crate::error::Result;
 use crate::models::{
     ChatMessage, DownloadProgress, HardwareCapabilities, LlamaCppModel, LlamaCppStatus,
-    ModelRecommendation, ModelUseCase, OllamaModel, OllamaStatus,
+    ModelRecommendation, ModelUseCase, OllamaModel, OllamaStatus, OpenRouterModel,
 };
 use crate::services::{AIService, HardwareService};
 
@@ -172,6 +172,14 @@ pub async fn send_chat_message(
                 }
             }
         }
+        "openrouter" => match api_key {
+            Some(key) => AIService::with_openrouter_config(key, model.clone()),
+            None => {
+                return Err(crate::error::BeatPartnerError::Config(
+                    "API key required for OpenRouter".to_string(),
+                ))
+            }
+        },
         "llama_cpp" => match base_url {
             Some(url) => AIService::with_llama_cpp_url(url),
             None => AIService::new(Default::default()),
@@ -301,4 +309,10 @@ pub fn clear_chat_history(
         [&session_id],
     )?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn fetch_openrouter_models(api_key: String) -> Result<Vec<OpenRouterModel>> {
+    let cloud = crate::services::CloudService::new(30_000);
+    cloud.fetch_openrouter_models(&api_key).await
 }

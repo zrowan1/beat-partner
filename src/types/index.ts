@@ -12,5 +12,6 @@ export type {
   ModelUseCase,
   OllamaModel,
   OllamaStatus,
+  OpenRouterModel,
   StreamingMessage,
 } from "./ai";

@@ -4,6 +4,7 @@ import type {
   AIMessage,
   LlamaCppModel,
   OllamaModel,
+  OpenRouterModel,
   HardwareCapabilities,
   ModelRecommendation,
   ModelUseCase,
@@ -47,6 +48,12 @@ interface AIState {
   llamaCppModels: LlamaCppModel[];
   isLoadingLlamaCppModels: boolean;
 
+  // OpenRouter
+  openRouterApiKey: string | null;
+  openRouterModels: OpenRouterModel[];
+  isLoadingOpenRouterModels: boolean;
+  selectedOpenRouterModel: string | null;
+
   // UI State
   showModelManager: boolean;
   ollamaStatus: "unknown" | "available" | "unavailable";
@@ -58,6 +65,8 @@ interface AIState {
   setCloudBaseUrl: (url: string | null) => void;
   setSelectedModel: (modelId: string | null) => void;
   setLlamaCppBaseUrl: (url: string) => void;
+  setOpenRouterApiKey: (key: string | null) => void;
+  setSelectedOpenRouterModel: (modelId: string | null) => void;
   selectModel: (modelId: string, provider: AIProvider) => void;
   setChatHistoryLimit: (limit: number) => void;
   toggleModelManager: () => void;
@@ -67,6 +76,7 @@ interface AIState {
   checkLlamaCppStatus: () => Promise<void>;
   loadModels: () => Promise<void>;
   loadLlamaCppModels: () => Promise<void>;
+  fetchOpenRouterModels: () => Promise<void>;
   loadHardwareInfo: () => Promise<void>;
   loadRecommendations: (useCase?: ModelUseCase) => Promise<void>;
   downloadModel: (modelId: string) => Promise<void>;
@@ -83,7 +93,7 @@ interface AIState {
 export const useAIStore = create<AIState>((set, get) => ({
   // Initial state
   provider: "auto",
-  availableProviders: ["auto", "ollama", "llama_cpp", "openai", "anthropic", "custom"],
+  availableProviders: ["auto", "ollama", "llama_cpp", "openai", "anthropic", "openrouter", "custom"],
   ollamaBaseUrl: "http://localhost:11434",
   cloudApiKey: null,
   cloudBaseUrl: null,
@@ -109,6 +119,11 @@ export const useAIStore = create<AIState>((set, get) => ({
   llamaCppModels: [],
   isLoadingLlamaCppModels: false,
 
+  openRouterApiKey: null,
+  openRouterModels: [],
+  isLoadingOpenRouterModels: false,
+  selectedOpenRouterModel: null,
+
   showModelManager: false,
   ollamaStatus: "unknown",
 
@@ -124,6 +139,10 @@ export const useAIStore = create<AIState>((set, get) => ({
   setSelectedModel: (modelId) => set({ selectedModel: modelId }),
 
   setLlamaCppBaseUrl: (url) => set({ llamaCppBaseUrl: url }),
+
+  setOpenRouterApiKey: (key) => set({ openRouterApiKey: key }),
+
+  setSelectedOpenRouterModel: (modelId) => set({ selectedOpenRouterModel: modelId }),
 
   selectModel: (modelId, provider) => set({ selectedModel: modelId, provider }),
 
@@ -173,6 +192,24 @@ export const useAIStore = create<AIState>((set, get) => ({
     } catch (error) {
       console.error("Failed to load llama.cpp models:", error);
       set({ llamaCppModels: [], isLoadingLlamaCppModels: false });
+    }
+  },
+
+  fetchOpenRouterModels: async () => {
+    const { openRouterApiKey } = get();
+    if (!openRouterApiKey) {
+      toast.error("Enter your OpenRouter API key first");
+      return;
+    }
+    set({ isLoadingOpenRouterModels: true });
+    try {
+      const openRouterModels = await aiApi.fetchOpenRouterModels(openRouterApiKey);
+      set({ openRouterModels, isLoadingOpenRouterModels: false });
+      toast.success(`Loaded ${openRouterModels.length} models from OpenRouter`);
+    } catch (error) {
+      console.error("Failed to load OpenRouter models:", error);
+      set({ openRouterModels: [], isLoadingOpenRouterModels: false });
+      toast.error("Failed to fetch OpenRouter models — check your API key");
     }
   },
 
@@ -279,9 +316,22 @@ export const useAIStore = create<AIState>((set, get) => ({
   },
 
   sendMessage: async (content: string) => {
-    const { sessionId, selectedModel, provider, ollamaBaseUrl, llamaCppBaseUrl, cloudApiKey, messages } = get();
+    const {
+      sessionId,
+      selectedModel,
+      selectedOpenRouterModel,
+      provider,
+      ollamaBaseUrl,
+      llamaCppBaseUrl,
+      cloudApiKey,
+      openRouterApiKey,
+      messages,
+    } = get();
 
-    if (!selectedModel) {
+    const isOpenRouter = provider === "openrouter";
+    const effectiveModel = isOpenRouter ? selectedOpenRouterModel : selectedModel;
+
+    if (!effectiveModel) {
       toast.error("Please select a model first");
       return;
     }
@@ -301,6 +351,7 @@ export const useAIStore = create<AIState>((set, get) => ({
     });
 
     const effectiveBaseUrl = provider === "llama_cpp" ? llamaCppBaseUrl : ollamaBaseUrl;
+    const effectiveApiKey = isOpenRouter ? (openRouterApiKey ?? undefined) : (cloudApiKey ?? undefined);
 
     try {
       let streamedContent = "";
@@ -309,10 +360,10 @@ export const useAIStore = create<AIState>((set, get) => ({
         projectId: undefined,
         sessionId,
         content,
-        model: selectedModel,
+        model: effectiveModel,
         provider,
-        baseUrl: effectiveBaseUrl,
-        apiKey: cloudApiKey ?? undefined,
+        baseUrl: isOpenRouter ? undefined : effectiveBaseUrl,
+        apiKey: effectiveApiKey,
         onChunk: (chunk) => {
           streamedContent += chunk;
           set({ streamingContent: streamedContent });
