@@ -15,6 +15,9 @@ export function AiChatPanel() {
     isStreaming,
     streamingContent,
     selectedModel,
+    selectedOpenRouterModel,
+    openRouterModels,
+    provider,
     showModelManager,
     loadChatHistory,
     sendMessage,
@@ -25,6 +28,12 @@ export function AiChatPanel() {
     checkLlamaCppStatus,
     loadLlamaCppModels,
   } = useAIStore();
+
+  // Effective model: OpenRouter uses selectedOpenRouterModel, everything else uses selectedModel
+  const activeModel =
+    provider === "openrouter"
+      ? (openRouterModels.find((m) => m.id === selectedOpenRouterModel)?.name ?? selectedOpenRouterModel)
+      : selectedModel;
 
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -91,7 +100,7 @@ export function AiChatPanel() {
               AI Copilot
             </span>
             <span className="text-label text-white/40 truncate block">
-              {selectedModel || "No model selected"}
+              {activeModel || "No model selected"}
             </span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
@@ -158,7 +167,7 @@ export function AiChatPanel() {
 
         {/* Input */}
         <div className="p-3 pt-0 shrink-0">
-          {!selectedModel && (
+          {!activeModel && (
             <div className="glass-interactive px-3 py-2 mb-2 text-center">
               <p className="text-label text-white/50">
                 No model selected.{" "}
@@ -180,20 +189,20 @@ export function AiChatPanel() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={
-                selectedModel 
-                  ? showLoading 
-                    ? "AI is responding..." 
+                activeModel
+                  ? showLoading
+                    ? "AI is responding..."
                     : "Ask anything..."
                   : "Select a model first"
               }
-              disabled={showLoading || !selectedModel}
+              disabled={showLoading || !activeModel}
               className="flex-1 bg-transparent text-body text-white/90 placeholder:text-white/30 outline-none disabled:cursor-not-allowed min-w-0"
             />
             <Button
               variant="primary"
               size="sm"
               onClick={handleSend}
-              disabled={!input.trim() || showLoading || !selectedModel}
+              disabled={!input.trim() || showLoading || !activeModel}
               className="w-8 h-8 p-0 shrink-0"
             >
               {showLoading ? (
