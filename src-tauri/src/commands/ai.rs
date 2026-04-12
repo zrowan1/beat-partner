@@ -4,8 +4,8 @@ use tokio::sync::mpsc;
 use crate::db::Database;
 use crate::error::Result;
 use crate::models::{
-    ChatMessage, DownloadProgress, HardwareCapabilities, ModelRecommendation, ModelUseCase,
-    OllamaModel, OllamaStatus,
+    ChatMessage, DownloadProgress, HardwareCapabilities, LlamaCppModel, LlamaCppStatus,
+    ModelRecommendation, ModelUseCase, OllamaModel, OllamaStatus,
 };
 use crate::services::{AIService, HardwareService};
 
@@ -89,8 +89,28 @@ pub async fn delete_ollama_model(model_id: String, base_url: Option<String>) -> 
         Some(url) => AIService::with_base_url(url),
         None => AIService::new(Default::default()),
     };
-    
+
     service.delete_model(model_id).await
+}
+
+#[tauri::command]
+pub async fn check_llamacpp_status(base_url: Option<String>) -> Result<LlamaCppStatus> {
+    let service = match base_url {
+        Some(url) => AIService::with_llama_cpp_url(url),
+        None => AIService::new(Default::default()),
+    };
+
+    service.check_llamacpp_status().await
+}
+
+#[tauri::command]
+pub async fn list_llamacpp_models(base_url: Option<String>) -> Result<Vec<LlamaCppModel>> {
+    let service = match base_url {
+        Some(url) => AIService::with_llama_cpp_url(url),
+        None => AIService::new(Default::default()),
+    };
+
+    service.list_llamacpp_models().await
 }
 
 #[tauri::command]
@@ -145,11 +165,17 @@ pub async fn send_chat_message(
                     model.clone(),
                     base_url,
                 ),
-                None => return Err(crate::error::BeatPartnerError::Config(
-                    "API key required for cloud providers".to_string(),
-                )),
+                None => {
+                    return Err(crate::error::BeatPartnerError::Config(
+                        "API key required for cloud providers".to_string(),
+                    ))
+                }
             }
         }
+        "llama_cpp" => match base_url {
+            Some(url) => AIService::with_llama_cpp_url(url),
+            None => AIService::new(Default::default()),
+        },
         _ => match base_url {
             Some(url) => AIService::with_base_url(url),
             None => AIService::new(Default::default()),

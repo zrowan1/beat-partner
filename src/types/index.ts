@@ -6,6 +6,8 @@ export type {
   AIProvider,
   DownloadProgress,
   HardwareCapabilities,
+  LlamaCppModel,
+  LlamaCppStatus,
   ModelRecommendation,
   ModelUseCase,
   OllamaModel,

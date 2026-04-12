@@ -22,6 +22,8 @@ export function AiChatPanel() {
     toggleModelManager,
     loadModels,
     checkOllamaStatus,
+    checkLlamaCppStatus,
+    loadLlamaCppModels,
   } = useAIStore();
 
   const [input, setInput] = useState("");
@@ -36,10 +38,12 @@ export function AiChatPanel() {
       loadChatHistory();
       loadModels();
       checkOllamaStatus();
+      checkLlamaCppStatus();
+      loadLlamaCppModels();
       // Focus input when panel opens
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [aiChatOpen, loadChatHistory, loadModels, checkOllamaStatus]);
+  }, [aiChatOpen, loadChatHistory, loadModels, checkOllamaStatus, checkLlamaCppStatus, loadLlamaCppModels]);
 
   // Auto-scroll to bottom when messages change or streaming
   useEffect(() => {
