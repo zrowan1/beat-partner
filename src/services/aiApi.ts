@@ -11,6 +11,7 @@ import type {
   ModelUseCase,
   OllamaModel,
   OllamaStatus,
+  OpenRouterModel,
 } from "@/types";
 
 // Ollama status check
@@ -105,6 +106,11 @@ export async function loadChatHistory(
 
 export async function clearChatHistory(sessionId: string): Promise<void> {
   return invoke("clear_chat_history", { sessionId });
+}
+
+// OpenRouter
+export async function fetchOpenRouterModels(apiKey: string): Promise<OpenRouterModel[]> {
+  return invoke("fetch_openrouter_models", { apiKey });
 }
 
 // Generate unique session ID

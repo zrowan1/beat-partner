@@ -12,6 +12,8 @@ pub enum AIProvider {
     Anthropic,
     Custom,
     LlamaCpp,
+    #[serde(rename = "openrouter")]
+    OpenRouter,
     Auto,
 }
 
@@ -28,6 +30,7 @@ pub struct AIConfig {
     pub preferred_cloud_model: String,
     pub cloud_api_key: Option<String>,
     pub cloud_base_url: Option<String>,
+    pub openrouter_api_key: Option<String>,
     pub ollama_base_url: String,
     pub llama_cpp_base_url: String,
     pub timeout_ms: u64,
@@ -43,6 +46,7 @@ impl Default for AIConfig {
             preferred_cloud_model: "gpt-4o-mini".to_string(),
             cloud_api_key: None,
             cloud_base_url: None,
+            openrouter_api_key: None,
             ollama_base_url: "http://localhost:11434".to_string(),
             llama_cpp_base_url: "http://localhost:8080".to_string(),
             timeout_ms: 30000,
@@ -100,6 +104,16 @@ impl AIService {
         Self::new(config)
     }
 
+    pub fn with_openrouter_config(api_key: String, model: String) -> Self {
+        let config = AIConfig {
+            provider: AIProvider::OpenRouter,
+            preferred_cloud_model: model,
+            openrouter_api_key: Some(api_key),
+            ..Default::default()
+        };
+        Self::new(config)
+    }
+
     pub async fn chat(
         &self,
         messages: Vec<ChatMessage>,
@@ -134,8 +148,23 @@ impl AIService {
                             {
                                 Ok(response) => Ok(response),
                                 Err(_) => {
-                                    // Fallback 2: try cloud provider
-                                    if let Some(ref api_key) = self.config.cloud_api_key {
+                                    // Fallback 2: try OpenRouter if key is set
+                                    if let Some(ref api_key) = self.config.openrouter_api_key {
+                                        let cloud_model = model.clone().unwrap_or_else(|| {
+                                            self.config.preferred_cloud_model.clone()
+                                        });
+                                        self.cloud
+                                            .chat_stream(
+                                                &AIProvider::OpenRouter,
+                                                cloud_model,
+                                                messages.clone(),
+                                                api_key,
+                                                None,
+                                                stream_tx.clone(),
+                                            )
+                                            .await
+                                    // Fallback 3: try OpenAI if key is set
+                                    } else if let Some(ref api_key) = self.config.cloud_api_key {
                                         let cloud_model = model.unwrap_or_else(|| {
                                             self.config.preferred_cloud_model.clone()
                                         });
@@ -158,6 +187,26 @@ impl AIService {
                             Err(ollama_err)
                         }
                     }
+                }
+            }
+            AIProvider::OpenRouter => {
+                if let Some(ref api_key) = self.config.openrouter_api_key {
+                    let effective_model =
+                        model.unwrap_or_else(|| self.config.preferred_cloud_model.clone());
+                    self.cloud
+                        .chat_stream(
+                            &self.config.provider,
+                            effective_model,
+                            messages,
+                            api_key,
+                            None,
+                            stream_tx,
+                        )
+                        .await
+                } else {
+                    Err(BeatPartnerError::Config(
+                        "OpenRouter selected but no API key configured".to_string(),
+                    ))
                 }
             }
             AIProvider::OpenAI | AIProvider::Anthropic | AIProvider::Custom => {

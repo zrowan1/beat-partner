@@ -3,6 +3,7 @@ export type AIProvider =
   | "llama_cpp"
   | "openai"
   | "anthropic"
+  | "openrouter"
   | "custom"
   | "auto";
 
@@ -22,11 +23,23 @@ export interface AIConfig {
   preferredCloudModel: string;
   cloudApiKey?: string;
   cloudBaseUrl?: string;
+  openrouterApiKey?: string;
   ollamaBaseUrl: string;
   llamaCppBaseUrl: string;
   timeoutMs: number;
   maxRetries: number;
   streamResponses: boolean;
+}
+
+export interface OpenRouterModel {
+  id: string;
+  name: string;
+  description?: string;
+  contextLength: number;
+  pricingPrompt: number;
+  pricingCompletion: number;
+  isFree: boolean;
+  topProvider: string;
 }
 
 export interface LlamaCppStatus {

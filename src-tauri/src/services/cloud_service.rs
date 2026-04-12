@@ -1,5 +1,5 @@
 use crate::error::{BeatPartnerError, Result};
-use crate::models::{ChatMessage, ChatResponse};
+use crate::models::{ChatMessage, ChatResponse, OpenRouterModel, OpenRouterModelsResponse};
 use crate::services::AIProvider;
 use bytes::Bytes;
 use futures::stream::StreamExt;
@@ -98,6 +98,10 @@ impl CloudService {
             }
             AIProvider::Anthropic => {
                 self.anthropic_chat_stream(model, messages, api_key, stream_tx)
+                    .await
+            }
+            AIProvider::OpenRouter => {
+                self.openrouter_chat_stream(model, messages, api_key, stream_tx)
                     .await
             }
             _ => Err(BeatPartnerError::Config(format!(
@@ -281,6 +285,138 @@ impl CloudService {
             model,
             done: true,
         })
+    }
+
+    async fn openrouter_chat_stream(
+        &self,
+        model: String,
+        messages: Vec<ChatMessage>,
+        api_key: &str,
+        stream_tx: mpsc::Sender<String>,
+    ) -> Result<ChatResponse> {
+        let url = "https://openrouter.ai/api/v1/chat/completions";
+
+        let openai_messages: Vec<OpenAIMessage> = messages
+            .iter()
+            .map(|m| OpenAIMessage {
+                role: m.role.clone(),
+                content: m.content.clone(),
+            })
+            .collect();
+
+        let request = OpenAIRequest {
+            model: model.clone(),
+            messages: openai_messages,
+            stream: true,
+        };
+
+        let response = self
+            .client
+            .post(url)
+            .header("Authorization", format!("Bearer {}", api_key))
+            .header("HTTP-Referer", "https://beatpartner.app")
+            .header("X-Title", "BeatPartner")
+            .header("Content-Type", "application/json")
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| {
+                BeatPartnerError::AIService(format!("OpenRouter request failed: {}", e))
+            })?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "unknown error".to_string());
+            return Err(BeatPartnerError::AIService(format!(
+                "OpenRouter returned {}: {}",
+                status, body
+            )));
+        }
+
+        let mut stream = response.bytes_stream();
+        let mut full_content = String::new();
+
+        while let Some(chunk) = stream.next().await {
+            match chunk {
+                Ok(bytes) => {
+                    let text = String::from_utf8_lossy(&bytes);
+                    for line in text.lines() {
+                        let line = line.trim();
+                        if line.is_empty() || line == "data: [DONE]" {
+                            continue;
+                        }
+                        if let Some(data) = line.strip_prefix("data: ") {
+                            if let Ok(chunk) = serde_json::from_str::<OpenAIStreamChunk>(data) {
+                                for choice in &chunk.choices {
+                                    if let Some(ref delta) = choice.delta {
+                                        if let Some(ref content) = delta.content {
+                                            if !content.is_empty() {
+                                                full_content.push_str(content);
+                                                let _ = stream_tx.send(content.clone()).await;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    return Err(BeatPartnerError::AIService(format!(
+                        "OpenRouter stream error: {}",
+                        e
+                    )));
+                }
+            }
+        }
+
+        Ok(ChatResponse {
+            message: ChatMessage {
+                role: "assistant".to_string(),
+                content: full_content,
+            },
+            model,
+            done: true,
+        })
+    }
+
+    pub async fn fetch_openrouter_models(&self, api_key: &str) -> Result<Vec<OpenRouterModel>> {
+        let url = "https://openrouter.ai/api/v1/models";
+
+        let response = self
+            .client
+            .get(url)
+            .header("Authorization", format!("Bearer {}", api_key))
+            .send()
+            .await
+            .map_err(|e| {
+                BeatPartnerError::AIService(format!("OpenRouter models request failed: {}", e))
+            })?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "unknown error".to_string());
+            return Err(BeatPartnerError::AIService(format!(
+                "OpenRouter returned {}: {}",
+                status, body
+            )));
+        }
+
+        let models_response: OpenRouterModelsResponse = response.json().await.map_err(|e| {
+            BeatPartnerError::AIService(format!("Failed to parse OpenRouter models: {}", e))
+        })?;
+
+        Ok(models_response
+            .data
+            .into_iter()
+            .map(|raw| raw.into_model())
+            .collect())
     }
 
     async fn parse_anthropic_sse(

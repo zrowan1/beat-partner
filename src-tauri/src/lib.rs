@@ -37,6 +37,7 @@ pub fn run() {
             commands::send_chat_message,
             commands::load_chat_history,
             commands::clear_chat_history,
+            commands::fetch_openrouter_models,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
