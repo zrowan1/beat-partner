@@ -108,6 +108,12 @@ export function FirstRunModelSetup({ onComplete, onSkip }: FirstRunModelSetupPro
           setStep("recommendations");
         }
       });
+
+      // invoke resolved OK — download is complete on the Rust side.
+      // Always finalize here in case the Channel event was lost.
+      setStep("complete");
+      setStoreSelectedModel(selectedModel);
+      loadModels();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Download failed");
       setStep("recommendations");

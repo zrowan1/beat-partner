@@ -17,7 +17,7 @@ pub struct OllamaService {
 impl OllamaService {
     pub fn new(base_url: String) -> Self {
         let client = Client::builder()
-            .timeout(Duration::from_secs(300))
+            .connect_timeout(Duration::from_secs(30))
             .build()
             .unwrap_or_default();
 
@@ -140,7 +140,7 @@ impl OllamaService {
                         total_bytes = progress.total.unwrap_or(total_bytes);
 
                         let elapsed_secs = start_time.elapsed().as_secs_f64();
-                        let speed_mbps = if elapsed_secs > 0.0 {
+                        let speed_mbps = if elapsed_secs > 0.0 && current_bytes >= last_bytes {
                             ((current_bytes - last_bytes) as f64 / elapsed_secs) / 1024.0 / 1024.0
                         } else {
                             0.0
@@ -276,24 +276,22 @@ impl OllamaService {
         }
 
         let mut stream = response.bytes_stream();
-        let mut final_response: Option<ChatResponse> = None;
+        let mut accumulated_content = String::new();
+        let mut final_model = String::new();
 
         while let Some(chunk) = stream.next().await {
             match chunk {
                 Ok(bytes) => {
                     if let Ok(chat_response) = Self::parse_chat_response(&bytes) {
                         let content = chat_response.message.content.clone();
-                        
+
                         if !content.is_empty() {
+                            accumulated_content.push_str(&content);
                             let _ = stream_tx.send(content).await;
                         }
 
                         if chat_response.done {
-                            final_response = Some(ChatResponse {
-                                message: chat_response.message,
-                                model: chat_response.model,
-                                done: true,
-                            });
+                            final_model = chat_response.model;
                         }
                     }
                 }
@@ -303,22 +301,31 @@ impl OllamaService {
             }
         }
 
-        final_response.ok_or_else(|| {
-            BeatPartnerError::AIService("No response from Ollama".to_string())
+        if accumulated_content.is_empty() {
+            return Err(BeatPartnerError::AIService("No response from Ollama".to_string()));
+        }
+
+        Ok(ChatResponse {
+            message: ChatMessage {
+                role: "assistant".to_string(),
+                content: accumulated_content,
+            },
+            model: final_model,
+            done: true,
         })
     }
 
     fn parse_pull_progress(bytes: &Bytes) -> Result<OllamaPullProgress> {
         let text = String::from_utf8_lossy(bytes);
-        let lines: Vec<&str> = text.lines().collect();
-        
-        for line in lines {
+        let mut last_progress: Option<OllamaPullProgress> = None;
+
+        for line in text.lines() {
             if let Ok(progress) = serde_json::from_str::<OllamaPullProgress>(line) {
-                return Ok(progress);
+                last_progress = Some(progress);
             }
         }
-        
-        Err(BeatPartnerError::AIService("Failed to parse progress".to_string()))
+
+        last_progress.ok_or_else(|| BeatPartnerError::AIService("Failed to parse progress".to_string()))
     }
 
     fn parse_chat_response(bytes: &Bytes) -> Result<OllamaChatResponse> {
