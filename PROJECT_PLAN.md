@@ -798,18 +798,18 @@ export interface OpenRouterModel {
 - [x] Settings persistence (key-value store)
 
 ### Fase 1c: AI Chat & Model Management *(must-have)*
-- [ ] AI Chat interface met streaming
-- [ ] Ollama integratie (lokaal, primair)
+- [x] AI Chat interface met streaming
+- [x] Ollama integratie (lokaal, primair)
 - [ ] Cloud provider fallback (OpenAI / Anthropic)
-- [ ] Chat history opslag in SQLite
-- [ ] **Hardware detectie & model aanbevelingen**
-- [ ] **Model download & installatie vanuit de app**
-- [ ] **Use-case gebaseerde model suggesties**
-- [ ] **llama.cpp server integratie** (status check, model listing, streaming chat)
-- [ ] **llama.cpp provider UI** (base URL configuratie, server status indicator, GGUF instructies)
-- [ ] **OpenRouter provider** (API key beheer, model browser, streaming chat)
-- [ ] **OpenRouter model browser UI** (free/paid filter, provider filter, prijsindicator)
-- [ ] **Fallback volgorde** updaten: Ollama → llama.cpp → OpenRouter/Cloud
+- [x] Chat history opslag in SQLite
+- [x] **Hardware detectie & model aanbevelingen**
+- [x] **Model download & installatie vanuit de app**
+- [x] **Use-case gebaseerde model suggesties**
+- [x] **llama.cpp server integratie** (status check, model listing, streaming chat)
+- [x] **llama.cpp provider UI** (base URL configuratie, server status indicator, GGUF instructies)
+- [x] **OpenRouter provider** (API key beheer, model browser, streaming chat)
+- [x] **OpenRouter model browser UI** (free/paid filter, provider filter, prijsindicator)
+- [x] **Fallback volgorde** updaten: Ollama → llama.cpp → OpenRouter/Cloud
 
 ### Fase 2: Music Tools *(must-have)*
 - [ ] BPM/Key Detector (audio analyse via Rust + aubio/essentia)
