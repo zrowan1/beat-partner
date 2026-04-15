@@ -1,4 +1,10 @@
 export type { ActiveView } from "./app";
+export type {
+  AnalysisProgress,
+  AudioAnalysisResult,
+  ReferenceTrack,
+  SpectrumData,
+} from "./audio";
 export type { ProductionPhase, Project } from "./project";
 export type {
   AIConfig,

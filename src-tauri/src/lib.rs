@@ -16,6 +16,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(database)
         .invoke_handler(tauri::generate_handler![
             commands::list_projects,
@@ -38,6 +39,11 @@ pub fn run() {
             commands::load_chat_history,
             commands::clear_chat_history,
             commands::fetch_openrouter_models,
+            commands::analyze_audio_file,
+            commands::get_audio_spectrum,
+            commands::add_reference_track,
+            commands::list_reference_tracks,
+            commands::delete_reference_track,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

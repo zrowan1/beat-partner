@@ -1,4 +1,5 @@
 mod ai_service;
+mod audio_service;
 mod cloud_service;
 mod hardware_service;
 mod llamacpp_service;
@@ -7,6 +8,7 @@ mod project_service;
 mod settings_service;
 
 pub use ai_service::{AIProvider, AIService};
+pub use audio_service::AudioService;
 pub use cloud_service::CloudService;
 pub use hardware_service::HardwareService;
 pub use llamacpp_service::LlamaCppService;

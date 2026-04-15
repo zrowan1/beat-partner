@@ -1,6 +1,7 @@
-import { Wrench, Sliders, AudioWaveform, Settings, Music } from "lucide-react";
+import { Sliders, AudioWaveform, Settings, Music } from "lucide-react";
 import { useAppStore } from "@/stores/appStore";
 import { ProjectManager } from "@/components/features/ProjectManager";
+import { ToolsView } from "@/components/features/tools/ToolsView";
 
 export function MainContent() {
   const { activeView } = useAppStore();
@@ -10,7 +11,7 @@ export function MainContent() {
       case "guides":
         return <ProjectManager />;
       case "tools":
-        return <PlaceholderView icon={Wrench} title="Tools" description="Audio analysis and production tools" />;
+        return <ToolsView />;
       case "presets":
         return <PlaceholderView icon={Sliders} title="Presets" description="Synth preset manager" />;
       case "samples":

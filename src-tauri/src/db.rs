@@ -30,6 +30,7 @@ impl Database {
         let migrations = Migrations::new(vec![
             M::up(include_str!("../migrations/001_initial_schema.sql")),
             M::up(include_str!("../migrations/002_ai_model_management.sql")),
+            M::up(include_str!("../migrations/003_reference_tracks.sql")),
         ]);
 
         migrations.to_latest(conn)?;

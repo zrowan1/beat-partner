@@ -30,3 +30,8 @@ eventsource-stream = "0.2"
 futures = "0.3"
 bytes = "1"
 chrono = { version = "0.4", features = ["serde"] }
+tauri-plugin-dialog = "2"
+symphonia = { version = "0.5", features = ["mp3", "wav", "flac", "ogg", "aac"] }
+rustfft = "6.2"
+realfft = "3.4"
+sha2 = "0.10"

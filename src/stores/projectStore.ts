@@ -20,6 +20,7 @@ interface ProjectState {
   // Async actions
   loadProjects: () => Promise<void>;
   createProject: (name: string) => Promise<Project | null>;
+  updateProject: (project: Project) => Promise<Project | null>;
   deleteProject: (id: number) => Promise<void>;
   selectProject: (project: Project | null) => void;
 }
@@ -65,6 +66,23 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       set({
         error: err instanceof Error ? err.message : "Failed to create project",
         loading: false,
+      });
+      return null;
+    }
+  },
+
+  updateProject: async (project: Project) => {
+    try {
+      const updated = await projectApi.updateProject(project);
+      const { projects, currentProject } = get();
+      set({
+        projects: projects.map((p) => (p.id === updated.id ? updated : p)),
+        currentProject: currentProject?.id === updated.id ? updated : currentProject,
+      });
+      return updated;
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : "Failed to update project",
       });
       return null;
     }
