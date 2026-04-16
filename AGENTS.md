@@ -207,11 +207,15 @@ src/
 │   ├── layout/            # Layout componenten (Sidebar, MainContent, StatusBar)
 │   ├── liquid-glass/      # Liquid Glass specifieke componenten
 │   └── features/          # Feature-specifieke componenten
+│       ├── lyrics/        # Lyrics editor + annotaties
+│       └── vocals/        # Vocal production assistant panels
 ├── hooks/                 # Custom React hooks
 ├── pages/                 # Page-level views
 ├── services/              # Tauri IPC client wrappers
-├── stores/                # Zustand stores (appStore, projectStore, audioStore)
+├── stores/                # Zustand stores (appStore, projectStore, audioStore, lyricsStore, vocalProductionStore)
 ├── types/                 # Gedeelde TypeScript types
+│   ├── lyrics.ts
+│   └── vocal.ts
 ├── utils/                 # Pure helper functies
 └── constants/             # App constanten
 ```
@@ -225,6 +229,25 @@ src/
 5. **Migraties zijn forward-only** — geen rollbacks, schrijf een nieuwe migratie om te corrigeren.
 6. **Stream AI responses** — altijd streaming gebruiken voor chat, nooit wachten op volledige response.
 7. **Test op alle platforms** — backdrop-filter performance verschilt sterk per OS.
+
+## Vocal & Lyrics Conventies
+
+### Vocal Scope
+**Vocal Assistant, geen DAW**: BeatPartner is een companion, geen DAW. Vocal features bevatten géén eigen audio opname (`cpal`/`MediaRecorder`). De app helpt de producer met guides, checklists, notities en AI-advies om vocals in hun eigen DAW te realiseren.
+
+### Lyrics Annotatie Conventie
+**Lyrics Indexering**: Annotaties gebruiken UTF-16 code-unit offsets (`start_index`, `end_index`) om consistentie met JavaScript `String.prototype.length` te garanderen. Geen byte-offsets gebruiken voor multi-byte karakters.
+
+**Tag Kleuren**: Gebruik de volgende mapping voor consistente highlights:
+- `melody` → accent-cyan
+- `ad-lib` → accent-magenta
+- `harmony` → accent-purple
+- `flow` → amber-400
+- `emphasis` → rose-400
+- `note` → white/60
+
+### Reference Vocal Conventie
+**Reference Vocals**: Geïmporteerde vocal tracks worden behandeld als referentie-audio. Ze worden alleen geanalyseerd voor metadata (BPM/key/duration) en opgeslagen als `samples` of een aparte `reference_vocals` tabel. Geen editing/bewerking van de audio zelf in BeatPartner.
 
 ## AI Model Management Conventies
 

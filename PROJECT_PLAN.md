@@ -33,10 +33,12 @@ Desktop companion die beginners begeleidt door het muziek productie-proces met A
 │  SIDEBAR   │      MAIN CONTENT      │   AI      │
 │            │                        │  CHAT     │
 │ - Guides   │  (Guide/Player/        │           │
-│ - Tools    │   Tools/Presets)       │  Copilot  │
+│ - Tools    │   Tools/Presets/       │  Copilot  │
+│ - Lyrics   │   Lyrics/Vocals)       │           │
+│ - Vocals   │                        │           │
 │ - Presets  │                        │           │
-│ - Samples │                        │           │
-│ - Settings│                        │           │
+│ - Samples  │                        │           │
+│ - Settings │                        │           │
 │            │                        │           │
 ├────────────┴────────────────────────┴───────────┤
 │  Status: BPM 128 | C minor | Phase: Arrangement    │
@@ -127,7 +129,7 @@ Desktop companion die beginners begeleidt door het muziek productie-proces met A
 // stores/appStore.ts — UI & globale app state
 interface AppState {
   // UI State
-  activeView: 'guides' | 'tools' | 'presets' | 'samples' | 'settings';
+  activeView: 'guides' | 'tools' | 'lyrics' | 'vocals' | 'presets' | 'samples' | 'settings';
   sidebarOpen: boolean;
   aiChatOpen: boolean;
   
@@ -154,6 +156,20 @@ interface AudioState {
 }
 // NB: AudioContext zelf is een browser-object en hoort niet in een
 // serializable store. Gebruik een useRef of singleton pattern.
+
+// stores/lyricsStore.ts — Lyrics & annotaties per project
+interface LyricsState {
+  lyrics: Lyrics | null;
+  annotations: LyricAnnotation[];
+  isDirty: boolean;
+  selectedTag: LyricTag | null;
+}
+
+// stores/vocalProductionStore.ts — Vocal productie notities
+interface VocalProductionState {
+  notes: VocalProductionNotes | null;
+  isLoading: boolean;
+}
 ```
 
 ---
@@ -278,6 +294,43 @@ CREATE TABLE audio_analysis (
 
 CREATE INDEX idx_audio_analysis_path ON audio_analysis(file_path);
 CREATE INDEX idx_audio_hash ON audio_analysis(file_hash);
+
+-- Lyrics (per project, één actieve versie)
+CREATE TABLE lyrics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL UNIQUE,
+  content TEXT NOT NULL DEFAULT '',
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+-- Lyric Annotations (highlights: melody, ad-lib, flow, harmony, etc.)
+CREATE TABLE lyric_annotations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  lyrics_id INTEGER NOT NULL,
+  start_index INTEGER NOT NULL,
+  end_index INTEGER NOT NULL,
+  tag TEXT NOT NULL CHECK(tag IN ('melody','ad-lib','harmony','flow','emphasis','note')),
+  color TEXT,
+  note TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (lyrics_id) REFERENCES lyrics(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_lyric_annotations_lyrics ON lyric_annotations(lyrics_id);
+
+-- Vocal Production Notes (per project)
+CREATE TABLE vocal_production_notes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL,
+  mic_choice TEXT,
+  vocal_chain_json TEXT,
+  recording_notes TEXT,
+  editing_notes TEXT,
+  tuning_notes TEXT,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
 ```
 
 ---
@@ -431,7 +484,9 @@ export type ModelUseCase =
   | 'mixing'            // Mixing advies, EQ, compressie
   | 'mastering'         // Mastering technieken
   | 'analysis'          // Gedetailleerde track analyse
-  | 'creative';         // Brainstorming, ideeën genereren
+  | 'creative'          // Brainstorming, ideeën genereren
+  | 'lyrics'            // Rhyme, rewrite, storytelling, flow
+  | 'vocals';           // Recording tips, vocal chain, comping/tuning advies
 
 export interface ModelRecommendation {
   modelId: string;           // e.g., "llama3.2:latest"
@@ -817,6 +872,24 @@ export interface OpenRouterModel {
 - [ ] Audio Analyzer (spectrum FFT visualization)
 - [ ] Reference track importer
 
+#### Fase 2a: Lyrics Editor *(must-have)*
+- [ ] Per-project lyrics tekstveld met auto-save
+- [ ] Annotatie systeem: selecteer tekst → kies tag (`melody`, `ad-lib`, `harmony`, `flow`, `emphasis`, `note`)
+- [ ] Highlight rendering in editor (kleurgecodeerde onderstreep/achtergrond)
+- [ ] AI assistentie voor lyrics (rhyme suggestions, rewrite, flow tips)
+
+#### Fase 2b: Vocal Production Assistant *(must-have)*
+- [ ] **Recording Checklist**: stap-voor-stap checklist voor vocal recording (mic setup, gain staging, room, takes)
+- [ ] **Mic & Chain Advisor**: AI-gebaseerde suggesties voor microfoonkeuze en vocal chain (EQ, compression, reverb, delay) op basis van genre/vocalist
+- [ ] **Vocal Production Notes**: per project notities voor recording, editing, tuning
+- [ ] **Reference Vocal Library**: importeer reference vocal tracks (alleen analyse/metadata, niet voor opname)
+
+#### Fase 2c: Vocal Editing Guides *(nice-to-have)*
+- [ ] **Comping Guide**: beste practices voor vocal comping uit meerdere takes
+- [ ] **Tuning & Timing Guide**: when/to what extent te tunen/timen voor natuurlijk resultaat
+- [ ] **Effect Presets**: vocal chain presets per genre (pop, hip-hop, R&B, rock)
+- [ ] **Vocal Analysis**: analyse van geïmporteerde reference vocals (formant, dynamics hints)
+
 ### Fase 3: Content & Management *(nice-to-have)*
 - [ ] Sample Browser (+ drag-drop import)
 - [ ] Preset Manager (multi-synth support)
@@ -831,6 +904,11 @@ export interface OpenRouterModel {
 - [ ] Plugin detection (scan installed VSTs)
 - [ ] Advanced Liquid Glass effecten (WebGL shaders, chromatic aberration, 3D perspective)
 
+#### Fase 4a: Advanced Vocal Tools *(nice-to-have, later)*
+- [ ] AI feedback op lyrics (emotioneel verhaal, songstructuur)
+- [ ] Integration met DAW: export lyrics + annotaties als tekst/Markdown/PDF om naast DAW te gebruiken
+- [ ] Vocal warm-up en performance tips generator
+
 ---
 
 ## 9. Technische Architectuur
@@ -838,37 +916,57 @@ export interface OpenRouterModel {
 ```
 src-tauri/
 ├── src/
-│   ├── main.rs           # Entry point
-│   ├── lib.rs            # Module exports
-│   ├── error.rs          # Error types & handling
-│   ├── commands/         # Tauri commands
-│   │   ├── ai.rs         # AI/LLM handling
-│   │   ├── audio.rs      # BPM/Key detection
-│   │   ├── db.rs         # SQLite operations
-│   │   ├── files.rs      # File management
-│   │   └── projects.rs   # Project CRUD
-│   ├── services/         # Business logic
+│   ├── main.rs            # Entry point
+│   ├── lib.rs             # Module exports
+│   ├── error.rs           # Error types & handling
+│   ├── commands/          # Tauri commands
+│   │   ├── ai.rs          # AI/LLM handling
+│   │   ├── audio.rs       # BPM/Key detection
+│   │   ├── db.rs          # SQLite operations
+│   │   ├── files.rs       # File management
+│   │   ├── lyrics.rs      # Lyrics + annotations CRUD
+│   │   ├── vocals.rs      # Vocal production notes CRUD
+│   │   └── projects.rs    # Project CRUD
+│   ├── services/          # Business logic
 │   │   ├── ai_service.rs
-│   │   └── audio_service.rs
-│   └── models/           # Rust data models
+│   │   ├── audio_service.rs
+│   │   ├── lyrics_service.rs
+│   │   └── vocal_production_service.rs
+│   └── models/            # Rust data models
 │       ├── project.rs
 │       ├── sample.rs
-│       └── preset.rs
+│       ├── preset.rs
+│       ├── lyrics.rs
+│       ├── lyric_annotation.rs
+│       └── vocal_production_notes.rs
 
 src/
-├── components/           # React components
-│   ├── ui/              # Generic UI (Button, Card, Input)
-│   ├── layout/          # Layout components
-│   ├── liquid-glass/    # Liquid glass specific components
-│   └── features/        # Feature-specific components
-├── hooks/               # Custom React hooks
-├── pages/               # Page views
-├── services/            # API clients
-├── stores/              # Zustand stores
-├── styles/              # Global styles, Tailwind config
-├── types/               # TypeScript types
-├── utils/               # Helper functions
-└── constants/           # App constants
+├── components/            # React components
+│   ├── ui/               # Generic UI (Button, Card, Input)
+│   ├── layout/           # Layout components
+│   ├── liquid-glass/     # Liquid glass specific components
+│   └── features/         # Feature-specific components
+│       ├── lyrics/
+│       │   ├── LyricsEditor.tsx
+│       │   ├── AnnotationToolbar.tsx
+│       │   └── HighlightedLyrics.tsx
+│       └── vocals/
+│           ├── VocalProductionPanel.tsx
+│           ├── RecordingChecklist.tsx
+│           ├── VocalChainAdvisor.tsx
+│           └── VocalNotesEditor.tsx
+├── hooks/                # Custom React hooks
+├── pages/                # Page views
+├── services/             # API clients
+├── stores/               # Zustand stores
+│   ├── lyricsStore.ts
+│   └── vocalProductionStore.ts
+├── styles/               # Global styles, Tailwind config
+├── types/                # TypeScript types
+│   ├── lyrics.ts
+│   └── vocal.ts
+├── utils/                # Helper functions
+└── constants/            # App constants
 ```
 
 ---

@@ -1,1 +1,1 @@
-export type ActiveView = "guides" | "tools" | "presets" | "samples" | "settings";
+export type ActiveView = "guides" | "tools" | "lyrics" | "vocals" | "presets" | "samples" | "settings";
