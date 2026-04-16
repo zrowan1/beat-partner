@@ -19,8 +19,9 @@ pub struct AudioService;
 
 impl AudioService {
     /// Decode audio file to mono f32 samples using symphonia.
-    /// Returns (samples, sample_rate).
-    pub fn decode_audio(file_path: &str) -> Result<(Vec<f32>, u32, u16)> {
+    /// Returns (samples, sample_rate, channels, duration_secs).
+    /// Duration is the actual file duration; samples may be truncated for analysis.
+    pub fn decode_audio(file_path: &str) -> Result<(Vec<f32>, u32, u16, f64)> {
         let path = Path::new(file_path);
         let file = File::open(path).map_err(|e| {
             crate::error::BeatPartnerError::AudioAnalysis(format!(
@@ -70,6 +71,16 @@ impl AudioService {
             .map(|c| c.count() as u16)
             .unwrap_or(2);
         let track_id = track.id;
+
+        // Compute actual duration from container metadata if available
+        let duration_secs = track
+            .codec_params
+            .n_frames
+            .map(|n| n as f64 / sample_rate as f64)
+            .unwrap_or_else(|| {
+                // Fallback: we'll compute from decoded samples later
+                0.0
+            });
 
         let mut decoder = symphonia::default::get_codecs()
             .make(&track.codec_params, &DecoderOptions::default())
@@ -142,10 +153,16 @@ impl AudioService {
             ));
         }
 
-        Ok((all_samples, sample_rate, channels))
+        let final_duration = if duration_secs > 0.0 {
+            duration_secs
+        } else {
+            all_samples.len() as f64 / sample_rate as f64
+        };
+
+        Ok((all_samples, sample_rate, channels, final_duration))
     }
 
-    /// BPM detection using onset energy + autocorrelation.
+    /// BPM detection using combined onset detection + autocorrelation with harmonic voting.
     pub fn detect_bpm(samples: &[f32], sample_rate: u32) -> Result<f64> {
         let hop_size = 512;
         let frame_size = 1024;
@@ -156,14 +173,14 @@ impl AudioService {
             ));
         }
 
-        // Compute spectral flux onset detection function
-        let mut planner = RealFftPlanner::<f32>::new();
-        let fft = planner.plan_fft_forward(frame_size);
-
         let num_frames = (samples.len() - frame_size) / hop_size;
         let mut onset_signal = Vec::with_capacity(num_frames);
         let mut prev_magnitudes: Option<Vec<f32>> = None;
+        let mut prev_energy: f32 = 0.0;
         let spectrum_len = frame_size / 2 + 1;
+
+        let mut planner = RealFftPlanner::<f32>::new();
+        let fft = planner.plan_fft_forward(frame_size);
 
         for i in 0..num_frames {
             let start = i * hop_size;
@@ -172,8 +189,15 @@ impl AudioService {
                 break;
             }
 
+            let frame = &samples[start..end];
+
+            // Energy-based onset detection (good for drums in rock)
+            let energy: f32 = frame.iter().map(|s| s * s).sum();
+            let energy_diff = (energy - prev_energy).max(0.0);
+            prev_energy = energy;
+
             // Apply Hann window and compute FFT
-            let mut frame: Vec<f32> = samples[start..end]
+            let mut windowed: Vec<f32> = frame
                 .iter()
                 .enumerate()
                 .map(|(n, &s)| {
@@ -187,7 +211,7 @@ impl AudioService {
                 .collect();
 
             let mut spectrum = fft.make_output_vec();
-            fft.process(&mut frame, &mut spectrum).map_err(|e| {
+            fft.process(&mut windowed, &mut spectrum).map_err(|e| {
                 crate::error::BeatPartnerError::AudioAnalysis(format!(
                     "FFT error: {}",
                     e
@@ -201,14 +225,18 @@ impl AudioService {
                 .collect();
 
             // Spectral flux: sum of positive differences
+            let mut flux = 0.0f32;
             if let Some(ref prev) = prev_magnitudes {
-                let flux: f32 = magnitudes
+                flux = magnitudes
                     .iter()
                     .zip(prev.iter())
                     .map(|(curr, prev)| (curr - prev).max(0.0))
                     .sum();
-                onset_signal.push(flux);
             }
+
+            // Combine spectral flux and energy difference
+            let combined = flux + energy_diff * 0.5;
+            onset_signal.push(combined);
 
             prev_magnitudes = Some(magnitudes);
         }
@@ -231,7 +259,6 @@ impl AudioService {
         }
 
         // Autocorrelation to find dominant periodicity
-        // BPM range: 60-200 → period in onset frames
         let onset_rate = sample_rate as f64 / hop_size as f64;
         let min_lag = (onset_rate * 60.0 / 200.0) as usize; // 200 BPM
         let max_lag = (onset_rate * 60.0 / 60.0) as usize; // 60 BPM
@@ -243,8 +270,7 @@ impl AudioService {
             ));
         }
 
-        let mut best_lag = min_lag;
-        let mut best_corr = f64::NEG_INFINITY;
+        let mut autocorr = vec![0.0f64; max_lag + 2];
 
         for lag in min_lag..=max_lag {
             let mut corr = 0.0f64;
@@ -253,20 +279,90 @@ impl AudioService {
                 corr += onset_signal[i] as f64 * onset_signal[i + lag] as f64;
             }
             corr /= len as f64;
+            autocorr[lag] = corr;
+        }
 
-            if corr > best_corr {
-                best_corr = corr;
-                best_lag = lag;
+        // Find local peaks in autocorrelation
+        let mut peaks: Vec<(usize, f64)> = Vec::new();
+        for lag in (min_lag + 1)..max_lag {
+            if autocorr[lag] > autocorr[lag - 1] && autocorr[lag] > autocorr[lag + 1] {
+                peaks.push((lag, autocorr[lag]));
             }
         }
 
-        let bpm = onset_rate * 60.0 / best_lag as f64;
+        if peaks.is_empty() {
+            // Fallback to global maximum
+            let mut best_lag = min_lag;
+            let mut best_corr = f64::NEG_INFINITY;
+            for lag in min_lag..=max_lag {
+                if autocorr[lag] > best_corr {
+                    best_corr = autocorr[lag];
+                    best_lag = lag;
+                }
+            }
+            peaks.push((best_lag, best_corr));
+        }
 
-        // Clamp to reasonable range (double/half if out of range)
-        let bpm = if bpm < 60.0 {
-            bpm * 2.0
-        } else if bpm > 200.0 {
-            bpm / 2.0
+        // Score peaks with harmonic support voting
+        fn score_peak(peaks: &[(usize, f64)], idx: usize, onset_rate: f64) -> f64 {
+            let (lag, corr) = peaks[idx];
+            let bpm = onset_rate * 60.0 / lag as f64;
+            let mut score = corr;
+
+            for (other_idx, (other_lag, other_corr)) in peaks.iter().enumerate() {
+                if idx == other_idx {
+                    continue;
+                }
+                let other_bpm = onset_rate * 60.0 / *other_lag as f64;
+                let ratio = bpm / other_bpm;
+                // Reward harmonic relationships: 2x, 3x, 0.5x, 0.33x
+                let harmonics = [2.0, 3.0, 4.0, 0.5, 0.333_333_333_333_333_3];
+                for h in &harmonics {
+                    if (ratio - h).abs() < 0.08 {
+                        score += other_corr * 0.35;
+                    }
+                }
+            }
+
+            // Slight preference for musically common tempi (80-160)
+            if (80.0..=160.0).contains(&bpm) {
+                score *= 1.05;
+            }
+
+            score
+        }
+
+        let mut best_peak_idx = 0usize;
+        let mut best_score = f64::NEG_INFINITY;
+
+        for i in 0..peaks.len() {
+            let score = score_peak(&peaks, i, onset_rate);
+            if score > best_score {
+                best_score = score;
+                best_peak_idx = i;
+            }
+        }
+
+        let best_lag = peaks[best_peak_idx].0;
+
+        // Parabolic interpolation around the peak for sub-lag accuracy
+        let alpha = autocorr[best_lag.saturating_sub(1)];
+        let beta = autocorr[best_lag];
+        let gamma = autocorr[(best_lag + 1).min(max_lag)];
+        let interpolated_lag = if (alpha - 2.0 * beta + gamma).abs() > 1e-10 {
+            let p = (alpha - gamma) / (2.0 * (alpha - 2.0 * beta + gamma));
+            (best_lag as f64 - p).max(min_lag as f64).min(max_lag as f64)
+        } else {
+            best_lag as f64
+        };
+
+        let bpm = onset_rate * 60.0 / interpolated_lag;
+
+        // Fix octave errors by preferring BPM in the musically common 80-180 range.
+        let bpm = if bpm < 80.0 {
+            (bpm * 2.0).min(180.0)
+        } else if bpm > 180.0 {
+            (bpm / 2.0).max(80.0)
         } else {
             bpm
         };
@@ -322,7 +418,7 @@ impl AudioService {
                 ))
             })?;
 
-            // Fold into 12 pitch classes
+            // Fold into 12 pitch classes with octave weighting
             for (bin, c) in spectrum.iter().enumerate().take(spectrum_len) {
                 let freq =
                     bin as f64 * sample_rate as f64 / frame_size as f64;
@@ -333,8 +429,28 @@ impl AudioService {
                 let magnitude = (c.re * c.re + c.im * c.im).sqrt() as f64;
                 // MIDI note number from frequency
                 let midi = 69.0 + 12.0 * (freq / 440.0).log2();
-                let pitch_class = ((midi.round() as i32) % 12 + 12) % 12;
-                chroma[pitch_class as usize] += magnitude * magnitude;
+
+                // Weight lower octaves more — bass/fundamental defines key better
+                let octave = (midi / 12.0).floor() as i32;
+                let octave_weight = if octave <= 2 {
+                    1.0 // Sub-bass / bass: highest weight
+                } else if octave <= 4 {
+                    0.8 // Mid range
+                } else {
+                    0.5 // High range: less weight
+                };
+
+                // Linear interpolation between adjacent pitch classes
+                // instead of hard rounding for smoother chromagrams
+                let midi_floor = midi.floor();
+                let frac = midi - midi_floor;
+                let pc_lower = ((midi_floor as i32) % 12 + 12) % 12;
+                let pc_upper = (pc_lower + 1) % 12;
+                let w_lower = 1.0 - frac;
+                let w_upper = frac;
+
+                chroma[pc_lower as usize] += magnitude * octave_weight * w_lower;
+                chroma[pc_upper as usize] += magnitude * octave_weight * w_upper;
             }
         }
 
@@ -480,10 +596,9 @@ impl AudioService {
 
     /// Full analysis: decode + detect BPM + detect key.
     pub fn analyze_file(file_path: &str) -> Result<AudioAnalysisResult> {
-        let (samples, sample_rate, channels) =
+        let (samples, sample_rate, channels, duration_secs) =
             Self::decode_audio(file_path)?;
 
-        let duration_secs = samples.len() as f64 / sample_rate as f64;
         let bpm = Self::detect_bpm(&samples, sample_rate).ok();
         let key = Self::detect_key(&samples, sample_rate).ok();
 
@@ -581,6 +696,7 @@ impl AudioService {
 
         Ok(result)
     }
+
 }
 
 /// Pearson correlation coefficient between two arrays.
@@ -639,6 +755,35 @@ mod tests {
         assert!(
             (detected - bpm).abs() < 5.0,
             "Expected ~{} BPM, got {} BPM",
+            bpm,
+            detected
+        );
+    }
+
+    #[test]
+    fn test_detect_bpm_octave_error_correction() {
+        // Generate a click track at 128 BPM where sub-harmonic (64 BPM)
+        // might score higher without octave correction.
+        let sample_rate = 44100u32;
+        let bpm = 128.0;
+        let duration_secs = 12.0;
+        let total_samples = (sample_rate as f64 * duration_secs) as usize;
+        let samples_per_beat = (sample_rate as f64 * 60.0 / bpm) as usize;
+
+        let mut samples = vec![0.0f32; total_samples];
+        let click_len = 150;
+
+        for beat in 0..(duration_secs * bpm / 60.0) as usize {
+            let start = beat * samples_per_beat;
+            for j in 0..click_len.min(total_samples - start) {
+                samples[start + j] = if j % 2 == 0 { 0.9 } else { -0.9 };
+            }
+        }
+
+        let detected = AudioService::detect_bpm(&samples, sample_rate).unwrap();
+        assert!(
+            (detected - bpm).abs() < 5.0,
+            "Expected ~{} BPM, got {} BPM (octave error not corrected)",
             bpm,
             detected
         );

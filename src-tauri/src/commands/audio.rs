@@ -47,7 +47,7 @@ pub async fn get_audio_spectrum(
     let fft_size = fft_size.unwrap_or(4096);
 
     tokio::task::spawn_blocking(move || {
-        let (samples, sample_rate, _channels) = AudioService::decode_audio(&file_path)?;
+        let (samples, sample_rate, _channels, _duration_secs) = AudioService::decode_audio(&file_path)?;
         AudioService::compute_spectrum(&samples, sample_rate, fft_size)
     })
     .await
