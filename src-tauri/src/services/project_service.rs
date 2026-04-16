@@ -93,31 +93,33 @@ impl ProjectService {
     }
 
     pub fn update(db: &Database, project: &Project) -> Result<Project> {
-        let conn = db.conn.lock().unwrap();
         let id = project.id.ok_or_else(|| {
             crate::error::BeatPartnerError::Config("Project ID is required for update".to_string())
         })?;
 
-        conn.execute(
-            "UPDATE projects SET
-                name = ?1,
-                bpm = ?2,
-                key = ?3,
-                genre = ?4,
-                phase = ?5,
-                notes = ?6,
-                updated_at = CURRENT_TIMESTAMP
-             WHERE id = ?7",
-            params![
-                project.name,
-                project.bpm,
-                project.key,
-                project.genre,
-                project.phase,
-                project.notes,
-                id
-            ],
-        )?;
+        {
+            let conn = db.conn.lock().unwrap();
+            conn.execute(
+                "UPDATE projects SET
+                    name = ?1,
+                    bpm = ?2,
+                    key = ?3,
+                    genre = ?4,
+                    phase = ?5,
+                    notes = ?6,
+                    updated_at = CURRENT_TIMESTAMP
+                 WHERE id = ?7",
+                params![
+                    project.name,
+                    project.bpm,
+                    project.key,
+                    project.genre,
+                    project.phase,
+                    project.notes,
+                    id
+                ],
+            )?;
+        } // lock released here before get_by_id
 
         Self::get_by_id(db, id).map(|p| p.unwrap())
     }
