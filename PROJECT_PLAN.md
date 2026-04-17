@@ -873,10 +873,10 @@ export interface OpenRouterModel {
 - [ ] Reference track importer
 
 #### Fase 2a: Lyrics Editor *(must-have)*
-- [ ] Per-project lyrics tekstveld met auto-save
-- [ ] Annotatie systeem: selecteer tekst → kies tag (`melody`, `ad-lib`, `harmony`, `flow`, `emphasis`, `note`)
-- [ ] Highlight rendering in editor (kleurgecodeerde onderstreep/achtergrond)
-- [ ] AI assistentie voor lyrics (rhyme suggestions, rewrite, flow tips)
+- [x] Per-project lyrics tekstveld met auto-save
+- [x] Annotatie systeem: selecteer tekst → kies tag (`melody`, `ad-lib`, `harmony`, `flow`, `emphasis`, `note`)
+- [x] Highlight rendering in editor (kleurgecodeerde onderstreep/achtergrond)
+- [x] AI assistentie voor lyrics (rhyme suggestions, rewrite, flow tips)
 
 #### Fase 2b: Vocal Production Assistant *(must-have)*
 - [ ] **Recording Checklist**: stap-voor-stap checklist voor vocal recording (mic setup, gain staging, room, takes)

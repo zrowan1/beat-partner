@@ -5,6 +5,7 @@ export type {
   ReferenceTrack,
   SpectrumData,
 } from "./audio";
+export type { LyricAnnotation, LyricTag, Lyrics } from "./lyrics";
 export type { ProductionPhase, Project } from "./project";
 export type {
   AIConfig,

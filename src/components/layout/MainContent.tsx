@@ -1,7 +1,14 @@
-import { Sliders, AudioWaveform, Settings, Music } from "lucide-react";
+import {
+  Sliders,
+  AudioWaveform,
+  Settings,
+  Music,
+  Mic,
+} from "lucide-react";
 import { useAppStore } from "@/stores/appStore";
 import { ProjectManager } from "@/components/features/ProjectManager";
 import { ToolsView } from "@/components/features/tools/ToolsView";
+import { LyricsView } from "@/components/features/lyrics/LyricsView";
 
 export function MainContent() {
   const { activeView } = useAppStore();
@@ -12,12 +19,40 @@ export function MainContent() {
         return <ProjectManager />;
       case "tools":
         return <ToolsView />;
+      case "lyrics":
+        return <LyricsView />;
+      case "vocals":
+        return (
+          <PlaceholderView
+            icon={Mic}
+            title="Vocals"
+            description="Vocal production assistant"
+          />
+        );
       case "presets":
-        return <PlaceholderView icon={Sliders} title="Presets" description="Synth preset manager" />;
+        return (
+          <PlaceholderView
+            icon={Sliders}
+            title="Presets"
+            description="Synth preset manager"
+          />
+        );
       case "samples":
-        return <PlaceholderView icon={AudioWaveform} title="Samples" description="Sample library and browser" />;
+        return (
+          <PlaceholderView
+            icon={AudioWaveform}
+            title="Samples"
+            description="Sample library and browser"
+          />
+        );
       case "settings":
-        return <PlaceholderView icon={Settings} title="Settings" description="Application preferences" />;
+        return (
+          <PlaceholderView
+            icon={Settings}
+            title="Settings"
+            description="Application preferences"
+          />
+        );
       default:
         return <ProjectManager />;
     }

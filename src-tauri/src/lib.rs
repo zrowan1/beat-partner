@@ -44,6 +44,12 @@ pub fn run() {
             commands::add_reference_track,
             commands::list_reference_tracks,
             commands::delete_reference_track,
+            commands::get_lyrics,
+            commands::update_lyrics_content,
+            commands::list_lyric_annotations,
+            commands::create_lyric_annotation,
+            commands::delete_lyric_annotation,
+            commands::update_lyric_annotation,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
