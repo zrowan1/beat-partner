@@ -885,9 +885,9 @@ export interface OpenRouterModel {
 - [x] **Reference Vocal Library**: importeer reference vocal tracks (alleen analyse/metadata, niet voor opname)
 
 #### Fase 2c: Vocal Editing Guides *(nice-to-have)*
-- [ ] **Comping Guide**: beste practices voor vocal comping uit meerdere takes
-- [ ] **Tuning & Timing Guide**: when/to what extent te tunen/timen voor natuurlijk resultaat
-- [ ] **Effect Presets**: vocal chain presets per genre (pop, hip-hop, R&B, rock)
+- [x] **Comping Guide**: beste practices voor vocal comping uit meerdere takes
+- [x] **Tuning & Timing Guide**: when/to what extent te tunen/timen voor natuurlijk resultaat
+- [x] **Effect Presets**: vocal chain presets per genre (pop, hip-hop, R&B, rock)
 - [ ] **Vocal Analysis**: analyse van geïmporteerde reference vocals (formant, dynamics hints)
 
 ### Fase 3: Content & Management *(nice-to-have)*
