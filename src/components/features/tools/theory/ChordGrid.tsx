@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { getDiatonicChords, type NoteName } from "./theoryData";
 import { PianoKeyboard } from "./PianoKeyboard";
+import { GuitarChordDiagram } from "./GuitarChordDiagram";
+import { getGuitarVoicings } from "./guitarVoicings";
+import { Music, Guitar } from "lucide-react";
 
 interface ChordGridProps {
   rootNote: NoteName;
@@ -9,6 +12,7 @@ interface ChordGridProps {
 export function ChordGrid({ rootNote }: ChordGridProps) {
   const [mode, setMode] = useState<"major" | "minor">("major");
   const [selectedChordIndex, setSelectedChordIndex] = useState<number | null>(null);
+  const [visualization, setVisualization] = useState<"piano" | "guitar">("piano");
 
   const chords = getDiatonicChords(rootNote, mode);
   const selectedChord = selectedChordIndex !== null ? chords[selectedChordIndex] : null;
@@ -63,21 +67,72 @@ export function ChordGrid({ rootNote }: ChordGridProps) {
             </div>
             <div className="flex gap-2">
               {selectedChord.notes.map((note, i) => (
-                <span
+                <div
                   key={i}
-                  className="glass-interactive px-3 py-1 rounded-lg text-body font-mono text-white/70"
+                  className="glass-interactive px-3 py-2 rounded-lg text-center min-w-[56px]"
                 >
-                  {note}
-                </span>
+                  <div className="text-body font-mono text-white/80">{note}</div>
+                  <div className="text-[10px] font-mono text-white/40 mt-0.5">
+                    {selectedChord.intervals[i]}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
-          <div className="glass-card p-4 rounded-xl overflow-x-auto">
-            <PianoKeyboard
-              highlightedNotes={selectedChord.notes}
-              rootNote={selectedChord.root}
-            />
+
+          {/* Visualization toggle */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setVisualization("piano")}
+              className={`glass-interactive flex items-center gap-2 px-4 py-2 rounded-lg text-body transition-all duration-200 ${
+                visualization === "piano" ? "active text-white/90" : "text-white/50"
+              }`}
+            >
+              <Music size={16} strokeWidth={1.5} />
+              Piano
+            </button>
+            <button
+              onClick={() => setVisualization("guitar")}
+              className={`glass-interactive flex items-center gap-2 px-4 py-2 rounded-lg text-body transition-all duration-200 ${
+                visualization === "guitar" ? "active text-white/90" : "text-white/50"
+              }`}
+            >
+              <Guitar size={16} strokeWidth={1.5} />
+              Guitar
+            </button>
           </div>
+
+          {/* Piano visualization */}
+          {visualization === "piano" && (
+            <div className="glass-card p-4 rounded-xl overflow-x-auto">
+              <PianoKeyboard
+                highlightedNotes={selectedChord.notes}
+                rootNote={selectedChord.root}
+              />
+            </div>
+          )}
+
+          {/* Guitar visualizations */}
+          {visualization === "guitar" && (
+            <div className="glass-card p-4 rounded-xl">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {getGuitarVoicings(selectedChord.root, selectedChord.chordTypeName).map(
+                  (voicing, i) => (
+                    <div
+                      key={i}
+                      className={`flex items-center justify-center p-3 rounded-xl border transition-all duration-200 ${
+                        voicing.recommended
+                          ? "border-accent-cyan/20 bg-accent-cyan/5"
+                          : "border-white/5 bg-white/[0.02]"
+                      }`}
+                    >
+                      <GuitarChordDiagram voicing={voicing} />
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

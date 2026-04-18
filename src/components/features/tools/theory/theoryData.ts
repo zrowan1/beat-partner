@@ -109,7 +109,14 @@ const MINOR_DIATONIC: DiatonicChord[] = [
 export function getDiatonicChords(
   root: NoteName,
   mode: "major" | "minor"
-): { degree: string; root: NoteName; symbol: string; notes: string[] }[] {
+): {
+  degree: string;
+  root: NoteName;
+  symbol: string;
+  notes: string[];
+  chordTypeName: string;
+  intervals: string[];
+}[] {
   const diatonic = mode === "major" ? MAJOR_DIATONIC : MINOR_DIATONIC;
   const rootIndex = NOTES.indexOf(root);
 
@@ -120,6 +127,8 @@ export function getDiatonicChords(
       root: chordRoot,
       symbol: `${chordRoot}${d.chordType.symbol}`,
       notes: getChordNotes(chordRoot, d.chordType),
+      chordTypeName: d.chordType.name,
+      intervals: d.chordType.intervals.map(getIntervalName),
     };
   });
 }
