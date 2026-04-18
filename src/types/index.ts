@@ -7,6 +7,16 @@ export type {
 } from "./audio";
 export type { LyricAnnotation, LyricTag, Lyrics } from "./lyrics";
 export type { ProductionPhase, Project } from "./project";
+export {
+  CHECKLIST_CATEGORIES,
+} from "./vocal";
+export type {
+  ChecklistCategory,
+  ChecklistItem,
+  ReferenceVocal,
+  VocalChain,
+  VocalProductionNotes,
+} from "./vocal";
 export type {
   AIConfig,
   AIMessage,

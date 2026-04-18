@@ -50,6 +50,13 @@ pub fn run() {
             commands::create_lyric_annotation,
             commands::delete_lyric_annotation,
             commands::update_lyric_annotation,
+            commands::get_vocal_production_notes,
+            commands::update_vocal_production_notes,
+            commands::update_recording_checklist,
+            commands::list_reference_vocals,
+            commands::add_reference_vocal,
+            commands::delete_reference_vocal,
+            commands::update_reference_vocal,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

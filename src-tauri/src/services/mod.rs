@@ -7,6 +7,7 @@ mod lyrics_service;
 mod ollama_service;
 mod project_service;
 mod settings_service;
+mod vocal_production_service;
 
 pub use ai_service::{AIProvider, AIService};
 pub use audio_service::AudioService;
@@ -17,3 +18,4 @@ pub use lyrics_service::LyricsService;
 pub use ollama_service::OllamaService;
 pub use project_service::ProjectService;
 pub use settings_service::SettingsService;
+pub use vocal_production_service::VocalProductionService;

@@ -3,12 +3,12 @@ import {
   AudioWaveform,
   Settings,
   Music,
-  Mic,
 } from "lucide-react";
 import { useAppStore } from "@/stores/appStore";
 import { ProjectManager } from "@/components/features/ProjectManager";
 import { ToolsView } from "@/components/features/tools/ToolsView";
 import { LyricsView } from "@/components/features/lyrics/LyricsView";
+import { VocalsView } from "@/components/features/vocals/VocalsView";
 
 export function MainContent() {
   const { activeView } = useAppStore();
@@ -22,13 +22,7 @@ export function MainContent() {
       case "lyrics":
         return <LyricsView />;
       case "vocals":
-        return (
-          <PlaceholderView
-            icon={Mic}
-            title="Vocals"
-            description="Vocal production assistant"
-          />
-        );
+        return <VocalsView />;
       case "presets":
         return (
           <PlaceholderView

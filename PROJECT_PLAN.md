@@ -855,7 +855,7 @@ export interface OpenRouterModel {
 ### Fase 1c: AI Chat & Model Management *(must-have)*
 - [x] AI Chat interface met streaming
 - [x] Ollama integratie (lokaal, primair)
-- [ ] Cloud provider fallback (OpenAI / Anthropic)
+- [x] Cloud provider fallback (OpenAI / Anthropic)
 - [x] Chat history opslag in SQLite
 - [x] **Hardware detectie & model aanbevelingen**
 - [x] **Model download & installatie vanuit de app**
@@ -866,11 +866,11 @@ export interface OpenRouterModel {
 - [x] **OpenRouter model browser UI** (free/paid filter, provider filter, prijsindicator)
 - [x] **Fallback volgorde** updaten: Ollama → llama.cpp → OpenRouter/Cloud
 
-### Fase 2: Music Tools *(must-have)*
-- [ ] BPM/Key Detector (audio analyse via Rust + aubio/essentia)
-- [ ] Theory Helper (chord grids, scales viewer)
-- [ ] Audio Analyzer (spectrum FFT visualization)
-- [ ] Reference track importer
+### Fase 2: Music Tools *(must-have)* ✅
+- [x] BPM/Key Detector (audio analyse via Rust + symphonia + realfft)
+- [x] Theory Helper (chord grids, scales viewer, circle of fifths, guitar diagrams, progression suggestions)
+- [x] Audio Analyzer (spectrum FFT visualization)
+- [x] Reference track importer
 
 #### Fase 2a: Lyrics Editor *(must-have)*
 - [x] Per-project lyrics tekstveld met auto-save
@@ -878,11 +878,11 @@ export interface OpenRouterModel {
 - [x] Highlight rendering in editor (kleurgecodeerde onderstreep/achtergrond)
 - [x] AI assistentie voor lyrics (rhyme suggestions, rewrite, flow tips)
 
-#### Fase 2b: Vocal Production Assistant *(must-have)*
-- [ ] **Recording Checklist**: stap-voor-stap checklist voor vocal recording (mic setup, gain staging, room, takes)
-- [ ] **Mic & Chain Advisor**: AI-gebaseerde suggesties voor microfoonkeuze en vocal chain (EQ, compression, reverb, delay) op basis van genre/vocalist
-- [ ] **Vocal Production Notes**: per project notities voor recording, editing, tuning
-- [ ] **Reference Vocal Library**: importeer reference vocal tracks (alleen analyse/metadata, niet voor opname)
+#### Fase 2b: Vocal Production Assistant *(must-have)* ✅
+- [x] **Recording Checklist**: stap-voor-stap checklist voor vocal recording (mic setup, gain staging, room, takes)
+- [x] **Mic & Chain Advisor**: AI-gebaseerde suggesties voor microfoonkeuze en vocal chain (EQ, compression, reverb, delay) op basis van genre/vocalist
+- [x] **Vocal Production Notes**: per project notities voor recording, editing, tuning
+- [x] **Reference Vocal Library**: importeer reference vocal tracks (alleen analyse/metadata, niet voor opname)
 
 #### Fase 2c: Vocal Editing Guides *(nice-to-have)*
 - [ ] **Comping Guide**: beste practices voor vocal comping uit meerdere takes
