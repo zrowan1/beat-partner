@@ -33,6 +33,7 @@ impl Database {
             M::up(include_str!("../migrations/003_reference_tracks.sql")),
             M::up(include_str!("../migrations/004_lyrics.sql")),
             M::up(include_str!("../migrations/005_vocal_production.sql")),
+            M::up(include_str!("../migrations/006_vocal_editing_guides.sql")),
         ]);
 
         migrations.to_latest(conn)?;

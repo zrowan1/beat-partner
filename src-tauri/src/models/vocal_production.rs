@@ -11,6 +11,8 @@ pub struct VocalProductionNotes {
     pub editing_notes: Option<String>,
     pub tuning_notes: Option<String>,
     pub checklist: Vec<ChecklistItem>,
+    pub comping_progress: CompingProgress,
+    pub tuning_timing_progress: TuningTimingProgress,
     pub updated_at: Option<String>,
 }
 
@@ -66,6 +68,20 @@ impl ChecklistCategory {
             ChecklistCategory::Custom => "Custom",
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CompingProgress {
+    pub completed_sections: Vec<String>,
+    pub user_notes: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct TuningTimingProgress {
+    pub completed_sections: Vec<String>,
+    pub user_notes: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

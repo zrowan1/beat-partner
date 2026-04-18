@@ -2,7 +2,7 @@ use rusqlite::params;
 
 use crate::db::Database;
 use crate::error::Result;
-use crate::models::{default_checklist, ReferenceVocal, VocalChain, VocalProductionNotes};
+use crate::models::{default_checklist, CompingProgress, ReferenceVocal, TuningTimingProgress, VocalChain, VocalProductionNotes};
 use crate::services::AudioService;
 
 pub struct VocalProductionService;
@@ -12,17 +12,23 @@ impl VocalProductionService {
         let conn = db.conn.lock().unwrap();
 
         let existing = conn.query_row(
-            "SELECT id, project_id, mic_choice, vocal_chain_json, recording_notes, editing_notes, tuning_notes, checklist_json, updated_at \
+            "SELECT id, project_id, mic_choice, vocal_chain_json, recording_notes, editing_notes, tuning_notes, checklist_json, comping_progress_json, tuning_timing_progress_json, updated_at \
              FROM vocal_production_notes WHERE project_id = ?1",
             params![project_id],
             |row| {
                 let vocal_chain_json: String = row.get(3).unwrap_or_default();
                 let checklist_json: String = row.get(7).unwrap_or_else(|_| "[]".to_string());
+                let comping_progress_json: String = row.get(8).unwrap_or_else(|_| "{}".to_string());
+                let tuning_timing_progress_json: String = row.get(9).unwrap_or_else(|_| "{}".to_string());
 
                 let vocal_chain: VocalChain = serde_json::from_str(&vocal_chain_json)
                     .unwrap_or_default();
                 let checklist = serde_json::from_str(&checklist_json)
                     .unwrap_or_else(|_| default_checklist());
+                let comping_progress: CompingProgress = serde_json::from_str(&comping_progress_json)
+                    .unwrap_or_default();
+                let tuning_timing_progress: TuningTimingProgress = serde_json::from_str(&tuning_timing_progress_json)
+                    .unwrap_or_default();
 
                 Ok(VocalProductionNotes {
                     id: row.get(0)?,
@@ -33,7 +39,9 @@ impl VocalProductionService {
                     editing_notes: row.get(5)?,
                     tuning_notes: row.get(6)?,
                     checklist,
-                    updated_at: row.get(8)?,
+                    comping_progress,
+                    tuning_timing_progress,
+                    updated_at: row.get(10)?,
                 })
             },
         );
@@ -44,11 +52,13 @@ impl VocalProductionService {
                 let checklist = default_checklist();
                 let checklist_json = serde_json::to_string(&checklist).unwrap_or_else(|_| "[]".to_string());
                 let vocal_chain_json = serde_json::to_string(&VocalChain::default()).unwrap_or_else(|_| "{}".to_string());
+                let comping_progress_json = serde_json::to_string(&CompingProgress::default()).unwrap_or_else(|_| "{}".to_string());
+                let tuning_timing_progress_json = serde_json::to_string(&TuningTimingProgress::default()).unwrap_or_else(|_| "{}".to_string());
 
                 conn.execute(
-                    "INSERT INTO vocal_production_notes (project_id, mic_choice, vocal_chain_json, recording_notes, editing_notes, tuning_notes, checklist_json) \
-                     VALUES (?1, '', ?2, '', '', '', ?3)",
-                    params![project_id, vocal_chain_json, checklist_json],
+                    "INSERT INTO vocal_production_notes (project_id, mic_choice, vocal_chain_json, recording_notes, editing_notes, tuning_notes, checklist_json, comping_progress_json, tuning_timing_progress_json) \
+                     VALUES (?1, '', ?2, '', '', '', ?3, ?4, ?5)",
+                    params![project_id, vocal_chain_json, checklist_json, comping_progress_json, tuning_timing_progress_json],
                 )?;
 
                 let id = conn.last_insert_rowid();
@@ -62,6 +72,8 @@ impl VocalProductionService {
                     editing_notes: Some(String::new()),
                     tuning_notes: Some(String::new()),
                     checklist,
+                    comping_progress: CompingProgress::default(),
+                    tuning_timing_progress: TuningTimingProgress::default(),
                     updated_at: None,
                 })
             }
@@ -74,11 +86,13 @@ impl VocalProductionService {
 
         let vocal_chain_json = serde_json::to_string(&notes.vocal_chain).unwrap_or_else(|_| "{}".to_string());
         let checklist_json = serde_json::to_string(&notes.checklist).unwrap_or_else(|_| "[]".to_string());
+        let comping_progress_json = serde_json::to_string(&notes.comping_progress).unwrap_or_else(|_| "{}".to_string());
+        let tuning_timing_progress_json = serde_json::to_string(&notes.tuning_timing_progress).unwrap_or_else(|_| "{}".to_string());
 
         conn.execute(
             "UPDATE vocal_production_notes \
-             SET mic_choice = ?1, vocal_chain_json = ?2, recording_notes = ?3, editing_notes = ?4, tuning_notes = ?5, checklist_json = ?6, updated_at = CURRENT_TIMESTAMP \
-             WHERE id = ?7",
+             SET mic_choice = ?1, vocal_chain_json = ?2, recording_notes = ?3, editing_notes = ?4, tuning_notes = ?5, checklist_json = ?6, comping_progress_json = ?7, tuning_timing_progress_json = ?8, updated_at = CURRENT_TIMESTAMP \
+             WHERE id = ?9",
             params![
                 notes.mic_choice.as_ref(),
                 vocal_chain_json,
@@ -86,22 +100,30 @@ impl VocalProductionService {
                 notes.editing_notes.as_ref(),
                 notes.tuning_notes.as_ref(),
                 checklist_json,
+                comping_progress_json,
+                tuning_timing_progress_json,
                 notes.id,
             ],
         )?;
 
         conn.query_row(
-            "SELECT id, project_id, mic_choice, vocal_chain_json, recording_notes, editing_notes, tuning_notes, checklist_json, updated_at \
+            "SELECT id, project_id, mic_choice, vocal_chain_json, recording_notes, editing_notes, tuning_notes, checklist_json, comping_progress_json, tuning_timing_progress_json, updated_at \
              FROM vocal_production_notes WHERE id = ?1",
             params![notes.id],
             |row| {
                 let vocal_chain_json: String = row.get(3).unwrap_or_default();
                 let checklist_json: String = row.get(7).unwrap_or_else(|_| "[]".to_string());
+                let comping_progress_json: String = row.get(8).unwrap_or_else(|_| "{}".to_string());
+                let tuning_timing_progress_json: String = row.get(9).unwrap_or_else(|_| "{}".to_string());
 
                 let vocal_chain: VocalChain = serde_json::from_str(&vocal_chain_json)
                     .unwrap_or_default();
                 let checklist = serde_json::from_str(&checklist_json)
                     .unwrap_or_else(|_| default_checklist());
+                let comping_progress: CompingProgress = serde_json::from_str(&comping_progress_json)
+                    .unwrap_or_default();
+                let tuning_timing_progress: TuningTimingProgress = serde_json::from_str(&tuning_timing_progress_json)
+                    .unwrap_or_default();
 
                 Ok(VocalProductionNotes {
                     id: row.get(0)?,
@@ -112,7 +134,9 @@ impl VocalProductionService {
                     editing_notes: row.get(5)?,
                     tuning_notes: row.get(6)?,
                     checklist,
-                    updated_at: row.get(8)?,
+                    comping_progress,
+                    tuning_timing_progress,
+                    updated_at: row.get(10)?,
                 })
             },
         )
@@ -120,18 +144,50 @@ impl VocalProductionService {
     }
 
     pub fn update_checklist(db: &Database, project_id: i64, checklist: Vec<crate::models::ChecklistItem>) -> Result<VocalProductionNotes> {
-        let conn = db.conn.lock().unwrap();
+        {
+            let conn = db.conn.lock().unwrap();
+            let checklist_json = serde_json::to_string(&checklist).unwrap_or_else(|_| "[]".to_string());
 
-        let checklist_json = serde_json::to_string(&checklist).unwrap_or_else(|_| "[]".to_string());
+            conn.execute(
+                "UPDATE vocal_production_notes \
+                 SET checklist_json = ?1, updated_at = CURRENT_TIMESTAMP \
+                 WHERE project_id = ?2",
+                params![checklist_json, project_id],
+            )?;
+        } // mutex guard dropped here before calling get_or_create_notes
 
-        conn.execute(
-            "UPDATE vocal_production_notes \
-             SET checklist_json = ?1, updated_at = CURRENT_TIMESTAMP \
-             WHERE project_id = ?2",
-            params![checklist_json, project_id],
-        )?;
+        Self::get_or_create_notes(db, project_id)
+    }
 
-        // Return updated notes
+    pub fn update_comping_progress(db: &Database, project_id: i64, progress: &CompingProgress) -> Result<VocalProductionNotes> {
+        {
+            let conn = db.conn.lock().unwrap();
+            let progress_json = serde_json::to_string(progress).unwrap_or_else(|_| "{}".to_string());
+
+            conn.execute(
+                "UPDATE vocal_production_notes \
+                 SET comping_progress_json = ?1, updated_at = CURRENT_TIMESTAMP \
+                 WHERE project_id = ?2",
+                params![progress_json, project_id],
+            )?;
+        } // mutex guard dropped here before calling get_or_create_notes
+
+        Self::get_or_create_notes(db, project_id)
+    }
+
+    pub fn update_tuning_timing_progress(db: &Database, project_id: i64, progress: &TuningTimingProgress) -> Result<VocalProductionNotes> {
+        {
+            let conn = db.conn.lock().unwrap();
+            let progress_json = serde_json::to_string(progress).unwrap_or_else(|_| "{}".to_string());
+
+            conn.execute(
+                "UPDATE vocal_production_notes \
+                 SET tuning_timing_progress_json = ?1, updated_at = CURRENT_TIMESTAMP \
+                 WHERE project_id = ?2",
+                params![progress_json, project_id],
+            )?;
+        } // mutex guard dropped here before calling get_or_create_notes
+
         Self::get_or_create_notes(db, project_id)
     }
 

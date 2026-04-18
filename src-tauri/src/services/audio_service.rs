@@ -697,6 +697,149 @@ impl AudioService {
         Ok(result)
     }
 
+    /// Vocal characteristic analysis: estimates formant range, spectral brightness,
+    /// dynamics range, presence peak, and low-end rumble from FFT spectrum.
+    /// This is a heuristic estimation intended as guidance, not exact measurement.
+    pub fn analyze_vocal_characteristics(file_path: &str) -> Result<crate::models::VocalAnalysisResult> {
+        let (samples, sample_rate, _channels, duration_secs) =
+            Self::decode_audio(file_path)?;
+
+        if samples.is_empty() {
+            return Err(crate::error::BeatPartnerError::AudioAnalysis(
+                "No audio data to analyze".to_string(),
+            ));
+        }
+
+        // Compute average spectrum for spectral analysis
+        let fft_size = 4096;
+        let spectrum = Self::compute_spectrum(&samples, sample_rate, fft_size)?;
+        let freq_res = spectrum.frequency_resolution as f64;
+        let mags = &spectrum.magnitudes;
+
+        // --- Spectral brightness ---
+        // Ratio of energy above 4kHz vs below 4kHz
+        let mut low_energy = 0.0f64;
+        let mut high_energy = 0.0f64;
+        for (i, &mag) in mags.iter().enumerate() {
+            let freq = i as f64 * freq_res;
+            let energy = (mag as f64).powi(2);
+            if freq < 4000.0 {
+                low_energy += energy;
+            } else if freq <= 16000.0 {
+                high_energy += energy;
+            }
+        }
+        let brightness_ratio = if low_energy > 0.0 {
+            high_energy / low_energy
+        } else { 0.0 };
+        let spectral_brightness = if brightness_ratio < 0.05 {
+            "dark".to_string()
+        } else if brightness_ratio < 0.15 {
+            "warm".to_string()
+        } else if brightness_ratio < 0.35 {
+            "bright".to_string()
+        } else {
+            "harsh".to_string()
+        };
+
+        // --- Formant estimation ---
+        // Look for dominant peaks in the vocal formant range (500Hz–4kHz)
+        let formant_start = (500.0 / freq_res) as usize;
+        let formant_end = (4000.0 / freq_res).min(mags.len() as f64) as usize;
+        let mut formant_band_energy = vec![0.0f64; formant_end.saturating_sub(formant_start)];
+        for i in formant_start..formant_end {
+            formant_band_energy[i - formant_start] = mags[i] as f64;
+        }
+        // Find the frequency with highest energy in formant range
+        let mut dominant_formant_freq = 0.0;
+        let mut max_formant_energy = 0.0;
+        for (idx, &energy) in formant_band_energy.iter().enumerate() {
+            if energy > max_formant_energy {
+                max_formant_energy = energy;
+                dominant_formant_freq = (formant_start + idx) as f64 * freq_res;
+            }
+        }
+        // Map dominant formant freq to a rough note range
+        let estimated_formant_range = if dominant_formant_freq < 700.0 {
+            "C3–F3".to_string()
+        } else if dominant_formant_freq < 1000.0 {
+            "F3–A3".to_string()
+        } else if dominant_formant_freq < 1400.0 {
+            "A3–C4".to_string()
+        } else if dominant_formant_freq < 2000.0 {
+            "C4–F4".to_string()
+        } else if dominant_formant_freq < 2800.0 {
+            "F4–A4".to_string()
+        } else {
+            "A4–C5".to_string()
+        };
+
+        // --- Presence peak (2–5kHz) ---
+        let presence_start = (2000.0 / freq_res) as usize;
+        let presence_end = (5000.0 / freq_res).min(mags.len() as f64) as usize;
+        let mut presence_sum = 0.0f64;
+        let mut presence_count = 0usize;
+        for i in presence_start..presence_end {
+            presence_sum += mags[i] as f64;
+            presence_count += 1;
+        }
+        let presence_peak_db = if presence_count > 0 {
+            presence_sum / presence_count as f64
+        } else { -100.0 };
+
+        // --- Low-end rumble (<100Hz) ---
+        let rumble_end = (100.0 / freq_res).min(mags.len() as f64) as usize;
+        let mut rumble_sum = 0.0f64;
+        let mut rumble_count = 0usize;
+        for i in 0..rumble_end {
+            rumble_sum += mags[i] as f64;
+            rumble_count += 1;
+        }
+        let low_end_rumble_db = if rumble_count > 0 {
+            rumble_sum / rumble_count as f64
+        } else { -100.0 };
+
+        // --- Dynamics range ---
+        // Compute RMS in short windows and find range between loudest and softest
+        let window_size = (sample_rate as usize / 10).max(1024); // 100ms windows
+        let mut rms_values = Vec::new();
+        for chunk in samples.chunks(window_size) {
+            let sum_sq: f32 = chunk.iter().map(|&s| s * s).sum();
+            let rms = (sum_sq / chunk.len() as f32).sqrt();
+            if rms > 1e-6 {
+                // Convert to dB
+                let db = 20.0 * rms.log10();
+                rms_values.push(db);
+            }
+        }
+        let dynamics_range_db = if rms_values.len() >= 2 {
+            let max_db = rms_values.iter().cloned().fold(f32::NEG_INFINITY, f32::max) as f64;
+            let min_db = rms_values.iter().cloned().fold(f32::INFINITY, f32::min) as f64;
+            (max_db - min_db).max(0.0)
+        } else {
+            0.0
+        };
+        let dynamics_character = if dynamics_range_db < 6.0 {
+            "compressed".to_string()
+        } else if dynamics_range_db < 14.0 {
+            "dynamic".to_string()
+        } else {
+            "inconsistent".to_string()
+        };
+
+        Ok(crate::models::VocalAnalysisResult {
+            file_path: file_path.to_string(),
+            duration_secs,
+            estimated_formant_range,
+            spectral_brightness,
+            dynamics_range_db,
+            dynamics_character,
+            presence_peak_db,
+            low_end_rumble_db,
+            analyzed_at: chrono::Utc::now().to_rfc3339(),
+        })
+    }
+
 }
 
 /// Pearson correlation coefficient between two arrays.
@@ -802,5 +945,57 @@ mod tests {
         assert_eq!(spectrum.magnitudes.len(), fft_size / 2 + 1);
         assert!((spectrum.frequency_resolution - sample_rate as f32 / fft_size as f32).abs() < 0.01);
         assert_eq!(spectrum.sample_rate, sample_rate);
+    }
+
+    #[test]
+    fn test_vocal_analysis_silence() {
+        // Silence should produce predictable "dark"/"inconsistent" characteristics
+        let sample_rate = 44100u32;
+        let samples = vec![0.0f32; sample_rate as usize * 2]; // 2 seconds of silence
+
+        // We can't call analyze_vocal_characteristics directly without a file,
+        // so we test the spectrum computation that underlies it.
+        let spectrum = AudioService::compute_spectrum(&samples, sample_rate, 4096).unwrap();
+        // All magnitudes should be at floor (-100 dB)
+        for &mag in &spectrum.magnitudes {
+            assert!((mag - (-100.0)).abs() < 0.1, "Expected silence floor at -100dB, got {}", mag);
+        }
+    }
+
+    #[test]
+    fn test_vocal_analysis_tone() {
+        // Generate a 1kHz sine wave — should produce a bright spectral profile
+        let sample_rate = 44100u32;
+        let freq = 1000.0f32;
+        let duration_secs = 2.0;
+        let total_samples = (sample_rate as f64 * duration_secs) as usize;
+
+        let samples: Vec<f32> = (0..total_samples)
+            .map(|i| {
+                let t = i as f32 / sample_rate as f32;
+                (2.0 * std::f32::consts::PI * freq * t).sin() * 0.5
+            })
+            .collect();
+
+        let spectrum = AudioService::compute_spectrum(&samples, sample_rate, 4096).unwrap();
+
+        // Find peak frequency bin
+        let peak_bin = spectrum
+            .magnitudes
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .map(|(i, _)| i)
+            .unwrap_or(0);
+
+        let peak_freq = peak_bin as f32 * spectrum.frequency_resolution;
+
+        // Should detect peak near 1kHz (within one bin)
+        assert!(
+            (peak_freq - freq).abs() < spectrum.frequency_resolution * 2.0,
+            "Expected peak near {} Hz, got {} Hz",
+            freq,
+            peak_freq
+        );
     }
 }

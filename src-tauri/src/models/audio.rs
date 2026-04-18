@@ -34,6 +34,20 @@ pub enum AnalysisProgress {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct VocalAnalysisResult {
+    pub file_path: String,
+    pub duration_secs: f64,
+    pub estimated_formant_range: String,
+    pub spectral_brightness: String,
+    pub dynamics_range_db: f64,
+    pub dynamics_character: String,
+    pub presence_peak_db: f64,
+    pub low_end_rumble_db: f64,
+    pub analyzed_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ReferenceTrack {
     pub id: Option<i64>,
     pub project_id: i64,

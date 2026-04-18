@@ -21,6 +21,16 @@ export interface ChecklistItem {
   completed: boolean;
 }
 
+export interface CompingProgress {
+  completedSections: string[];
+  userNotes: string;
+}
+
+export interface TuningTimingProgress {
+  completedSections: string[];
+  userNotes: string;
+}
+
 export interface VocalProductionNotes {
   id: number | null;
   projectId: number;
@@ -30,6 +40,8 @@ export interface VocalProductionNotes {
   editingNotes: string;
   tuningNotes: string;
   checklist: ChecklistItem[];
+  compingProgress: CompingProgress;
+  tuningTimingProgress: TuningTimingProgress;
   updatedAt: string | null;
 }
 
@@ -44,6 +56,26 @@ export interface ReferenceVocal {
   durationSecs: number;
   notes: string;
   addedAt: string | null;
+}
+
+export interface VocalAnalysisResult {
+  filePath: string;
+  durationSecs: number;
+  estimatedFormantRange: string;
+  spectralBrightness: string;
+  dynamicsRangeDb: number;
+  dynamicsCharacter: string;
+  presencePeakDb: number;
+  lowEndRumbleDb: number;
+  analyzedAt: string;
+}
+
+export interface VocalEffectPreset {
+  id: string;
+  name: string;
+  genre: string;
+  description: string;
+  chain: VocalChain;
 }
 
 export const CHECKLIST_CATEGORIES: {

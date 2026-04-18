@@ -1,30 +1,29 @@
 import { useEffect, useState } from "react";
-import { Mic, FileText, ListChecks, Sparkles, Music } from "lucide-react";
+import { Mic, FileText, ListChecks, Sparkles, Music, BookOpen, Wand2 } from "lucide-react";
 import { useProjectStore } from "@/stores/projectStore";
 import { useVocalProductionStore } from "@/stores/vocalProductionStore";
 import { VocalNotesEditor } from "./VocalNotesEditor";
 import { RecordingChecklist } from "./RecordingChecklist";
 import { VocalChainAdvisor } from "./VocalChainAdvisor";
 import { ReferenceVocalLibrary } from "./ReferenceVocalLibrary";
+import { GuidesView } from "./GuidesView";
+import { VocalEffectPresets } from "./VocalEffectPresets";
 
-type VocalTab = "notes" | "checklist" | "advisor" | "references";
+type VocalTab = "notes" | "checklist" | "advisor" | "guides" | "presets" | "references";
 
 const TABS: { id: VocalTab; label: string; icon: typeof Mic }[] = [
   { id: "notes", label: "Notes", icon: FileText },
   { id: "checklist", label: "Checklist", icon: ListChecks },
   { id: "advisor", label: "Advisor", icon: Sparkles },
+  { id: "guides", label: "Guides", icon: BookOpen },
+  { id: "presets", label: "Presets", icon: Wand2 },
   { id: "references", label: "References", icon: Music },
 ];
 
 export function VocalsView() {
   const currentProject = useProjectStore((state) => state.currentProject);
-  const {
-    isDirty,
-    isLoading,
-    loadNotes,
-    loadReferenceVocals,
-    clearState,
-  } = useVocalProductionStore();
+  const { isDirty, isLoading, loadNotes, loadReferenceVocals, clearState } =
+    useVocalProductionStore();
   const [activeTab, setActiveTab] = useState<VocalTab>("notes");
 
   // Load data when project changes
@@ -83,19 +82,13 @@ export function VocalsView() {
             <Mic size={18} className="text-accent-magenta" />
           </div>
           <div>
-            <h2 className="text-[15px] font-medium text-white/90">
-              {currentProject.name}
-            </h2>
+            <h2 className="text-[15px] font-medium text-white/90">{currentProject.name}</h2>
             <p className="text-label text-white/40">Vocal Production Assistant</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {isDirty && (
-            <span className="text-[11px] text-white/30 italic">
-              Unsaved changes
-            </span>
-          )}
+          {isDirty && <span className="text-[11px] text-white/30 italic">Unsaved changes</span>}
           {isLoading && (
             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           )}
@@ -128,6 +121,8 @@ export function VocalsView() {
         {activeTab === "notes" && <VocalNotesEditor />}
         {activeTab === "checklist" && <RecordingChecklist />}
         {activeTab === "advisor" && <VocalChainAdvisor />}
+        {activeTab === "guides" && <GuidesView />}
+        {activeTab === "presets" && <VocalEffectPresets />}
         {activeTab === "references" && <ReferenceVocalLibrary />}
       </div>
     </div>

@@ -2,8 +2,8 @@ use tauri::State;
 
 use crate::db::Database;
 use crate::error::Result;
-use crate::models::{ChecklistItem, ReferenceVocal, VocalProductionNotes};
-use crate::services::VocalProductionService;
+use crate::models::{ChecklistItem, CompingProgress, ReferenceVocal, TuningTimingProgress, VocalProductionNotes};
+use crate::services::{AudioService, VocalProductionService};
 
 #[tauri::command]
 pub fn get_vocal_production_notes(db: State<'_, Database>, project_id: i64) -> Result<VocalProductionNotes> {
@@ -25,6 +25,29 @@ pub fn update_recording_checklist(
     checklist: Vec<ChecklistItem>,
 ) -> Result<VocalProductionNotes> {
     VocalProductionService::update_checklist(&db, project_id, checklist)
+}
+
+#[tauri::command]
+pub fn update_comping_progress(
+    db: State<'_, Database>,
+    project_id: i64,
+    progress: CompingProgress,
+) -> Result<VocalProductionNotes> {
+    VocalProductionService::update_comping_progress(&db, project_id, &progress)
+}
+
+#[tauri::command]
+pub fn update_tuning_timing_progress(
+    db: State<'_, Database>,
+    project_id: i64,
+    progress: TuningTimingProgress,
+) -> Result<VocalProductionNotes> {
+    VocalProductionService::update_tuning_timing_progress(&db, project_id, &progress)
+}
+
+#[tauri::command]
+pub fn analyze_vocal_file(file_path: String) -> Result<crate::models::VocalAnalysisResult> {
+    AudioService::analyze_vocal_characteristics(&file_path)
 }
 
 #[tauri::command]
